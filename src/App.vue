@@ -12,7 +12,7 @@
     url: GRAPHQL_ENTRYPOINT,
     exchanges: [
       //altDebugExchange,
-      devtoolsExchange,
+      //devtoolsExchange,
       cacheExchange, fetchExchange,
       subscriptionExchange({forwardSubscription})
     ],

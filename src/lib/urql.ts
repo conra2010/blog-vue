@@ -78,7 +78,7 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                     const selectionName = fieldSelection.name.value;
 
                     const mercureUrl = result.data[selectionName].mercureUrl;
-                    console.log('Mercure Subscription recv URL: ', mercureUrl)
+                    //console.log('Mercure Subscription recv URL: ', mercureUrl)
 
                     // TODO: automatically add this to the request set, and strip it in result
                     if (
@@ -118,6 +118,7 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
             }
         });
 
+        //  return a 'teardown' function
         return () => {
             subscriptions.forEach(it => it.close());
 

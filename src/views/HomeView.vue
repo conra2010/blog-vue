@@ -1,12 +1,22 @@
 <template>
   <p>Hello World!</p>
   {{ console.log(iris.value) }}
+  <div>
+    <div class="q-pa-md">
+      <q-scroll-area style="height: 600px">
+        <div v-for="(item, index) in delta.inserted" :key="item" class="caption">
+          <!-- <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Rerum repellendus sit voluptate voluptas eveniet porro. Rerum blanditiis perferendis totam, ea at omnis vel numquam exercitationem aut, natus minima, porro labore.</p> -->
+          <PostSummary :iri="item" :rmref="delta.deleted" :insref="delta.inserted"/>
+        </div>
+      </q-scroll-area>
+    </div>
+  </div>
   <div v-if="iris">
     <div class="q-pa-md">
       <q-infinite-scroll @load="onLoadMore" :offset="250">
         <div v-for="(item, index) in infScrollSlice" :key="item" class="caption">
           <!-- <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Rerum repellendus sit voluptate voluptas eveniet porro. Rerum blanditiis perferendis totam, ea at omnis vel numquam exercitationem aut, natus minima, porro labore.</p> -->
-          <PostSummary :iri="item" />
+          <PostSummary :iri="item" :rmref="delta.deleted" />
         </div>
         <template v-slot:loading>
           <div class="row justify-center q-my-md">
@@ -22,6 +32,9 @@
 import PostSummary from '@/components/PostSummary.vue';
 import { gql, useQuery } from '@urql/vue';
 import { ref, computed, watch } from 'vue';
+
+import { useIRIsDelta } from '@/lib/delta'
+import { MERCURE_ENTRYPOINT, MERCURE_TOPICS_PREFIX } from '@/config/api';
 
 //  a graphql query to get the IRIs of posts
 const queryIndexPostsResponse = useQuery({
@@ -62,5 +75,7 @@ const refetchQueryNetworkOnly = () => {
   if (queryIndexPostsResponse.isPaused) { queryIndexPostsResponse.resume() }
   queryIndexPostsResponse.executeQuery({ requestPolicy: 'network-only' })
 }
+
+const delta = useIRIsDelta(MERCURE_ENTRYPOINT + '?topic=' + MERCURE_TOPICS_PREFIX + '/posts/{id}')
 
 </script>

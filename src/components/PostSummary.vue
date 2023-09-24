@@ -3,9 +3,9 @@ import { computed, ref, toRefs } from 'vue';
 import { gql, useMutation, useQuery, useSubscription } from '@urql/vue'
 
 //  component receives the Post IRI as prop
-const props = defineProps<{ iri: string }>()
+const props = defineProps<{ iri: string, rmref?: Set<string>, insref?: Set<string> }>()
 
-const { iri } = toRefs(props)
+const { iri, rmref, insref } = toRefs(props)
 
 //  graphql query for details 
 const detailsQuery = useQuery({
@@ -64,16 +64,32 @@ const updateStarCountMutation = useMutation(gql`
     }
 `)
 
+const qcardStyle = computed(() => {
+    if (rmref?.value?.has(iri.value)) {
+        return "background: radial-gradient(circle, #ff3535 0%, #650101 100%)"
+    }
+    if (insref?.value?.has(iri.value)) {
+        return "background: radial-gradient(circle, #a5f775 0%, #406835 100%)"
+    }
+
+    return "background: radial-gradient(circle, #35a2ff 0%, #014a88 100%)"
+})
+
+const isDeletedResource = computed(() => {
+    return (rmref?.value?.has(iri.value))
+})
+
 </script>
 
 <template>
     <div v-if="details">
-        <q-card class="my-card text-white" style="background: radial-gradient(circle, #35a2ff 0%, #014a88 100%)">
+        <q-card class="my-card text-white" :style="qcardStyle">
             <q-card-section>
                 <div class="row items-center no-wrap">
                     <div class="col">
                         <div class="text-h6">{{ details.title }}</div>
                         <div class="col-auto text-grey text-caption q-pt-md row no-wrap items-center">
+                            <q-icon name="warning" />{{ iri }}
                             <q-icon name="star" />{{ details.stars }}
                         </div>
                     </div>
@@ -86,7 +102,7 @@ const updateStarCountMutation = useMutation(gql`
             </q-card-section>
             <q-separator dark />
             <q-card-actions>
-                <q-btn color="primary" label="Like" @click="pushChanges" />
+                <q-btn :disable="isDeletedResource" color="primary" label="Like" @click="pushChanges" />
             </q-card-actions>
         </q-card>
     </div>
