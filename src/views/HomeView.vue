@@ -34,7 +34,7 @@ import { gql, useQuery } from '@urql/vue';
 import { ref, computed, watch } from 'vue';
 
 import { useIRIsDelta } from '@/lib/delta'
-import { MERCURE_ENTRYPOINT, MERCURE_TOPICS_PREFIX } from '@/config/api';
+import { MERCURE_WELL_KNOWN, MERCURE_TOPICS_PREFIX } from '@/config/api';
 
 //  a graphql query to get the IRIs of posts
 const queryIndexPostsResponse = useQuery({
@@ -76,6 +76,6 @@ const refetchQueryNetworkOnly = () => {
   queryIndexPostsResponse.executeQuery({ requestPolicy: 'network-only' })
 }
 
-const delta = useIRIsDelta(MERCURE_ENTRYPOINT + '?topic=' + MERCURE_TOPICS_PREFIX + '/posts/{id}')
+const delta = useIRIsDelta(MERCURE_WELL_KNOWN + '?topic=' + MERCURE_TOPICS_PREFIX + '/posts/{id}')
 
 </script>

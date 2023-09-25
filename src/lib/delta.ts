@@ -64,10 +64,17 @@ export const useIRIsDelta = (baseurl: string, options: UseEventSourceOptions = {
   //  recv a #create event, refetch all IDs
   //
   cfev.onmessage = (event) => {
-    const json = JSON.parse(event.data)
-    console.log('add: ', json['@id'])
-
-    inserted.add(json['@id'])
+    const data: string[] = event.data.split("\n")
+    
+    data.map((token) => {
+        console.log('token: ', token)
+        if (token.startsWith("{")) {
+            const json = JSON.parse(token)
+            console.log('add: ', json['@id'])
+            
+            inserted.add(json['@id'])
+        }
+    })
   }
 
   //  recv a #delete event, refetch all IDs

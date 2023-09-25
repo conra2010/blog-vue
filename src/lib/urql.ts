@@ -4,7 +4,7 @@ import { make, toObservable } from 'wonka';
 import { Kind, parse } from 'graphql'
 import type { DocumentNode, FieldNode, OperationDefinitionNode } from 'graphql';
 import type { OperationResult } from '@urql/core';
-import { ENTRYPOINT } from '@/config/api';
+import { MERCURE_ENTRYPOINT } from '@/config/api';
 
 // see [urql subscriptions](https://formidable.com/open-source/urql/docs/advanced/subscriptions/)
 //
@@ -93,7 +93,8 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                     // this is a problem now, using the full URL will prevent the PHP API code from publishing updates
                     // when a mutation is executed that changes the resource; maybe CORS? maybe certs?
                     //console.log(mercureUrl);
-                    const mercureSubscription = new EventSource(mercureUrl.replace('http://caddy', ENTRYPOINT), { withCredentials: false });
+                    const mercureSubscription = new EventSource(mercureUrl.replace('https://host.docker.internal:8445', MERCURE_ENTRYPOINT), { withCredentials: false });
+                    //const mercureSubscription = new EventSource(mercureUrl, { withCredentials: false });
 
                     mercureSubscription.addEventListener('message', (ev) => {
                         console.log('Mercure Subscription recv message: ', ev)
