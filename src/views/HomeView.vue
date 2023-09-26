@@ -76,6 +76,8 @@ const refetchQueryNetworkOnly = () => {
   queryIndexPostsResponse.executeQuery({ requestPolicy: 'network-only' })
 }
 
+//  testing this to keep track of inserted/removed resource IRIs from server events
+//
 const delta = useIRIsDelta(MERCURE_WELL_KNOWN + '?topic=' + MERCURE_TOPICS_PREFIX + '/posts/{id}')
 
 </script>

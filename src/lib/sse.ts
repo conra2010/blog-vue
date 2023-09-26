@@ -17,6 +17,8 @@ export function useMercureEventSource(url: string | URL, events: Array<string> =
   
     const dataFieldsValues: Ref<any[] | null> = ref(null)
 
+    const eventType: Ref<string> = ref('message')
+
     const lastEventId: Ref<string> = ref('')
 
 
@@ -52,6 +54,23 @@ export function useMercureEventSource(url: string | URL, events: Array<string> =
     }
   }
 
+  function datavals(e: MessageEvent<any>): string[] {
+    return e.data.split("\n")
+  }
+
+  function jslift(dvals: string[]): any[] {
+    const rx: any[] = []
+    dvals.map((value) => {
+        const [err, linejs] = jsparse(value)
+        if (err) {
+            console.log('recv data field is not json: ', value)
+        } else {
+            rx.push(linejs)
+        }
+    })
+    return rx
+  }
+
   const es = new EventSource(url, { withCredentials })
 
   eventSource.value = es
@@ -66,26 +85,37 @@ export function useMercureEventSource(url: string | URL, events: Array<string> =
     error.value = e
   }
 
-  es.onmessage = (e: MessageEvent) => {
-    //console.log('message: ', e)
+  function pre(e: MessageEvent<any>) {
+    //  ?????
     event.value = null
     data.value = e.data
 
-    //  process all lines of 'data' fields
-    const datavals: string[] = e.data.split("\n")
-
-    const buffer: any[] = []
-    datavals.map((value) => {
-        const [err, linejs] = jsparse(value)
-        if (err) {
-            console.log('recv data field is not json: ', value)
-        } else {
-            buffer.push(linejs)
-        }
-    })
-    dataFieldsValues.value = buffer
-
+    eventType.value = e.type
     lastEventId.value = e.lastEventId
+  }
+
+  es.addEventListener('create', (e) => {
+    console.log('create: ', e.data)
+
+    pre(e)
+    //  eventType.value = 'create'
+    dataFieldsValues.value = jslift(datavals(e))
+  })
+
+  es.addEventListener('update', (e) => {
+    console.log('update: ', e.data)
+  })
+
+  es.addEventListener('delete', (e) => {
+    console.log('delete: ', e.data)
+  })
+
+  es.onmessage = (e: MessageEvent) => {
+    console.log('message: ', e)
+
+    pre(e)
+    //
+    dataFieldsValues.value = datavals(e)
   }
 
   for (const event_name of events) {
@@ -100,7 +130,7 @@ export function useMercureEventSource(url: string | URL, events: Array<string> =
   })
 
   return {
-    dataFieldsValues, lastEventId,
+    dataFieldsValues, lastEventId, eventType,
     //  and...
     eventSource,
     event,

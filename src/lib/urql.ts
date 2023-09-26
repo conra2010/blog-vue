@@ -96,10 +96,12 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                     const mercureSubscription = new EventSource(mercureUrl.replace('https://host.docker.internal:8445', MERCURE_ENTRYPOINT), { withCredentials: false });
                     //const mercureSubscription = new EventSource(mercureUrl, { withCredentials: false });
 
-                    mercureSubscription.addEventListener('message', (ev) => {
+                    mercureSubscription.addEventListener('gqlsubs', (ev) => {
                         console.log('Mercure Subscription recv message: ', ev)
 
-                        const newData = JSON.parse(ev.data);
+                        const datavals = ev.data.split("\n")
+                        // TODO detect/design event data; use 1st line 
+                        const newData = JSON.parse(datavals[0]);
 
                         result = {
                             ...result,

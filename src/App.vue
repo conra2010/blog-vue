@@ -7,13 +7,14 @@
   import { devtoolsExchange } from '@urql/devtools'
 
   import { GRAPHQL_ENTRYPOINT } from '@/config/api';
-
+  //  create a urql client to execute GraphQL operations
   const client = new Client({
     url: GRAPHQL_ENTRYPOINT,
     exchanges: [
-      //altDebugExchange,
+      //  Google Chrome has urql dev tools, uncomment this to send data to them
       //devtoolsExchange,
       cacheExchange, fetchExchange,
+      //  see lib/urql.ts
       subscriptionExchange({forwardSubscription})
     ],
   });
@@ -22,6 +23,18 @@
 </script>
 
 <template>
+  <div class="q-pa-md">
+    <q-toolbar class="bg-primary text-white q-my-md shadow-2">
+      <q-btn flat round dense icon="menu" class="q-mr-sm" />
+      <q-separator dark vertical inset />
+      <q-btn stretch flat label="Home" to="/" />
+      <q-space />
+      <q-separator dark vertical />
+      <q-btn stretch flat label="SSE" to="/sse" />
+      <q-separator dark vertical />
+      <q-btn stretch flat label="About" to="/about"/>
+    </q-toolbar>
+  </div>
   <div class="v-cloak">
     <router-view v-slot="{ Component }">
       <keep-alive>

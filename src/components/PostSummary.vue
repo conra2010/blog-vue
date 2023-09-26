@@ -22,23 +22,31 @@ const detailsQuery = useQuery({
     variables: { id: iri }
 })
 
+//  convenient access to post details
 const details = computed(() => {
+    //  loading... ?
     if (detailsQuery.data?.value === undefined) return undefined
     
     return detailsQuery.data.value.post
 })
 
-//  graphql subscription
+//  graphql subscription optional handler function to process received data
 const handleSubscription = (messages = [], response) => {
     detailsQuery.data.value.post.stars = response.updatePostSubscribe.post.stars
 
     return [response.updatePostSubscribe.post, ...messages]
 }
 
+//  subscription, we only care about the 'stars' field
+//
+//  this uses a modified API Platform/Mercure that computes the subscription
+//  topic with not only the selection fields, but including the given resource
+//  ID!; so we'll get notified only about that particular resource
+//
 const starCountSubscription = useSubscription({
   query: gql`
     subscription StarCount ($iriv: ID!) {
-      updatePostSubscribe (input: {id: $iriv, clientSubscriptionId: "foo"}) {
+      updatePostSubscribe (input: {id: $iriv, clientSubscriptionId: "urn:blog-vue:deefbf60"}) {
         post {
           stars
         }
@@ -49,21 +57,23 @@ const starCountSubscription = useSubscription({
   `, variables: { iriv: iri },
 }, handleSubscription)
 
-//  graphql mutation
+//  exec graphql mutation to 'give a like' to this resource
 function pushChanges() {
     updateStarCountMutation.executeMutation({ id: iri.value, count: details.value.stars + 1 }).then(result => {
         console.log(result)
     })
 }
 
+//  the graphql operation
 const updateStarCountMutation = useMutation(gql`
     mutation IncrementStarCount ($id: ID!, $count: Int!) {
-        updatePost (input: { id: $id, clientMutationId: "foobar", stars: $count }) {
+        updatePost (input: { id: $id, clientMutationId: "urn:blog-vue:c1662453", stars: $count }) {
             clientMutationId
         }
     }
 `)
 
+//  computed style for deleted/inserted or (default) state of resources
 const qcardStyle = computed(() => {
     if (rmref?.value?.has(iri.value)) {
         return "background: radial-gradient(circle, #ff3535 0%, #650101 100%)"
@@ -75,6 +85,7 @@ const qcardStyle = computed(() => {
     return "background: radial-gradient(circle, #35a2ff 0%, #014a88 100%)"
 })
 
+//  computed flag to disable content for deleted resources; eg. disable the 'like' button
 const isDeletedResource = computed(() => {
     return (rmref?.value?.has(iri.value))
 })

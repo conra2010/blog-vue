@@ -1,10 +1,9 @@
 <template>
-  <p>Hello World!</p>
-  {{ console.log(iris.value) }}
+  <!-- {{ console.log(iris.value) }} -->
   <div v-if="iris">
     <div class="q-pa-md">
-        <div v-for="(item, index) in infScrollSlice" :key="item" class="caption">
-          <!-- <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Rerum repellendus sit voluptate voluptas eveniet porro. Rerum blanditiis perferendis totam, ea at omnis vel numquam exercitationem aut, natus minima, porro labore.</p> -->
+        <div v-for="item in infScrollSlice" :key="item" class="caption">
+          <!-- component to show details of a particular Post -->
           <PostSummary :iri="item" />
         </div>
     </div>
@@ -16,7 +15,7 @@ import PostSummary from '@/components/PostSummary.vue';
 import { gql, useQuery } from '@urql/vue';
 import { ref, computed, watch } from 'vue';
 
-//  a graphql query to get the IRIs of posts
+//  a graphql query to get the IRIs of all posts (pagination disabled in AP resource class)
 const queryIndexPostsResponse = useQuery({
   query: gql`
     query QueryIndexPosts {
@@ -29,31 +28,15 @@ const queryIndexPostsResponse = useQuery({
 
 //  easy access to retrieved IRIs as an array
 const iris = computed(() => {
+  //  not loaded yet
   if (queryIndexPostsResponse.data?.value === undefined) return []
 
   return queryIndexPostsResponse.data?.value.posts.map((p) => p.id)
 })
 
-//  currently shown IRIs up to this array index
+//  currently shown IRIs up to this array index; used here to show only a few components
 const infScrollMark = ref(1)
 
 const infScrollSlice = computed(() => { return iris.value.slice(0, infScrollMark.value) })
-
-function onLoadMore(index, done) {
-  setTimeout(() => {
-    if (infScrollMark.value < iris.value.length) {
-      infScrollMark.value = Math.min(iris.value.length, infScrollMark.value + 10)
-    }
-    console.log('inf slice: [0, ', infScrollMark.value, ']')
-    done()
-  }, 2000)
-}
-
-//  exec graphql query again but force network access
-//
-const refetchQueryNetworkOnly = () => {
-  if (queryIndexPostsResponse.isPaused) { queryIndexPostsResponse.resume() }
-  queryIndexPostsResponse.executeQuery({ requestPolicy: 'network-only' })
-}
 
 </script>
