@@ -32,6 +32,8 @@
       <q-btn stretch flat label="Ordered" to="/ordered" />
       <q-separator dark vertical inset />
       <q-btn stretch flat label="Table" to="/table" />
+      <q-separator dark vertical inset />
+      <q-btn stretch flat label="Test" to="/test" />
       <q-space />
       <q-separator dark vertical />
       <q-btn stretch flat label="SSE" to="/sse" />

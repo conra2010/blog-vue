@@ -1,13 +1,21 @@
 <script lang="ts" setup>
-import { computed, ref, toRefs } from 'vue';
+import { computed, ref, toRefs, type Ref } from 'vue';
 import { gql, useMutation, useQuery, useSubscription } from '@urql/vue'
 import { reactiveComputed, refDebounced } from '@vueuse/core';
 import PostSummaryDebounce from './PostSummaryDebounce.vue';
+import FieldChangeTracker from './FieldChangeTracker.vue';
 
 //  component receives the Post IRI as prop
 const props = defineProps<{ iri: string, rmref?: Set<string>, insref?: Set<string> }>()
 
 const { iri, rmref, insref } = toRefs(props)
+
+const isEditing = ref(true)
+
+interface FieldChangeTracking<T> {
+    og: Ref<T>;
+    uv: Ref<T>;
+}
 
 //  graphql query for details 
 const detailsQuery = useQuery({
@@ -45,8 +53,10 @@ const details = computed(() => {
 //  graphql subscription optional handler function to process received data
 const handleSubscription = (messages = [], response) => {
     //  TODO
-    detailsQuery.data.value.post.stars = response.updatePostSubscribe.post.stars
-    detailsQuery.data.value.post.author = response.updatePostSubscribe.post.author
+
+        detailsQuery.data.value.post.stars = response.updatePostSubscribe.post.stars
+        detailsQuery.data.value.post.author = response.updatePostSubscribe.post.author
+        detailsQuery.data.value.post.title = response.updatePostSubscribe.post.title
 
     return [response.updatePostSubscribe.post, ...messages]
 }
@@ -91,7 +101,7 @@ const updateStarCountMutation = useMutation(gql`
     }
 `)
 
-function updateTitle(title: string) { updateTitleMutation.executeMutation({id:iri.value,title:title}).then(result => {
+function updateTitle() { updateTitleMutation.executeMutation({id:iri.value,title:details.value.title}).then(result => {
     console.log('updateTitleMutation.executeMutation: result: ', result)
 }) }
 
@@ -142,17 +152,27 @@ const isDeletedResource = computed(() => {
 
 const expanded = ref(false)
 
+function startEditing(field: string) {
+
+}
+
+const updatePostTitle = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
+    updatePost (input:{id:$id,clientMutationId:"urn:blog-vue:64a8ff25",title:$fvalue}) {
+        clientMutationId
+    }
+}`
+
 </script>
 
 <template>
     <div v-if="details">
-        <PostSummaryDebounce :pre="details" />
         <!-- <p>{{ titleRef }}</p> -->
         <q-card class="my-card text-white q-mb-sm" :style="qcardStyle">
             <q-card-section>
                 <div class="text-h5 q-mt-sm q-mb-xs">
+                    <FieldChangeTracker :iri="iri" :og="details.title" :mut="updatePostTitle"/>
                     <q-input v-model="details.title" filled label="Title" />
-                    <q-btn flat color="secondary" label="Save" @click="updateTitle(details.title)" />
+                    <q-btn flat color="secondary" label="Save" @click="updateTitle" />
                     <q-input v-model="details.author" filled label="Author" />
                     <q-btn flat color="secondary" label="Save" @click="updateAuthor(details.author)" />
                     <div class="text-h7">{{ details.publishedDate }}</div>
@@ -163,6 +183,7 @@ const expanded = ref(false)
                 </div>
             </q-card-section>
             <q-card-actions>
+                <q-btn flat :disable="isDeletedResource" color="secondary" label="Edit" />
                 <q-btn flat :disable="isDeletedResource" color="primary" label="Like" @click="pushChanges(details.stars + 1)" />
                 <q-space />
                 <q-btn color="grey" round flat dense :icon="expanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down'"
