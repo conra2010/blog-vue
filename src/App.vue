@@ -28,6 +28,10 @@
       <q-btn flat round dense icon="menu" class="q-mr-sm" />
       <q-separator dark vertical inset />
       <q-btn stretch flat label="Home" to="/" />
+      <q-separator dark vertical inset />
+      <q-btn stretch flat label="Ordered" to="/ordered" />
+      <q-separator dark vertical inset />
+      <q-btn stretch flat label="Table" to="/table" />
       <q-space />
       <q-separator dark vertical />
       <q-btn stretch flat label="SSE" to="/sse" />

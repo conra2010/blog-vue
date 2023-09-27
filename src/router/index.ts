@@ -10,6 +10,16 @@ const router = createRouter({
       component: HomeView
     },
     {
+      path: '/ordered',
+      name: 'ordered',
+      component: () => import('../views/OrderedHomeView.vue')
+    },
+    {
+      path: '/table',
+      name: 'table',
+      component: () => import('../views/TabularHomeView.vue')
+    },
+    {
       path: '/sse',
       name: 'sse',
       component: () => import('../views/SSEView.vue')

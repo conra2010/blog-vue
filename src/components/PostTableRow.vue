@@ -1,8 +1,6 @@
 <script lang="ts" setup>
 import { computed, ref, toRefs } from 'vue';
 import { gql, useMutation, useQuery, useSubscription } from '@urql/vue'
-import { reactiveComputed, refDebounced } from '@vueuse/core';
-import PostSummaryDebounce from './PostSummaryDebounce.vue';
 
 //  component receives the Post IRI as prop
 const props = defineProps<{ iri: string, rmref?: Set<string>, insref?: Set<string> }>()
@@ -38,15 +36,13 @@ const detailsQuery = useQuery({
 const details = computed(() => {
     //  loading... ?
     if (detailsQuery.data?.value === undefined) return undefined
-
+    
     return detailsQuery.data.value.post
 })
 
 //  graphql subscription optional handler function to process received data
 const handleSubscription = (messages = [], response) => {
-    //  TODO
     detailsQuery.data.value.post.stars = response.updatePostSubscribe.post.stars
-    detailsQuery.data.value.post.author = response.updatePostSubscribe.post.author
 
     return [response.updatePostSubscribe.post, ...messages]
 }
@@ -57,14 +53,12 @@ const handleSubscription = (messages = [], response) => {
 //  topic with not only the selection fields, but including the given resource
 //  ID!; so we'll get notified only about that particular resource
 //
-const fastTrackingFieldsSubscription = useSubscription({
-    query: gql`
-    subscription FastTrackingSubscription ($iriv: ID!) {
+const starCountSubscription = useSubscription({
+  query: gql`
+    subscription StarCount ($iriv: ID!) {
       updatePostSubscribe (input: {id: $iriv, clientSubscriptionId: "urn:blog-vue:deefbf60"}) {
         post {
-            title
-            author
-            stars
+          stars
         }
         mercureUrl
         clientSubscriptionId
@@ -73,12 +67,10 @@ const fastTrackingFieldsSubscription = useSubscription({
   `, variables: { iriv: iri },
 }, handleSubscription)
 
-
-
 //  exec graphql mutation to 'give a like' to this resource
-function pushChanges(count: number) {
-    updateStarCountMutation.executeMutation({ id: iri.value, count:count }).then(result => {
-        console.log('updateStarCountMutation.executeMutation: result: ', result)
+function pushChanges() {
+    updateStarCountMutation.executeMutation({ id: iri.value, count: details.value.stars + 1 }).then(result => {
+        console.log(result)
     })
 }
 
@@ -90,24 +82,6 @@ const updateStarCountMutation = useMutation(gql`
         }
     }
 `)
-
-function updateTitle(title: string) { updateTitleMutation.executeMutation({id:iri.value,title:title}).then(result => {
-    console.log('updateTitleMutation.executeMutation: result: ', result)
-}) }
-
-const updateTitleTDN = gql`mutation UpdateTitle($id:ID!,$title:String!) { updatePost (input:{id:$id,clientMutationId:"TDN01",title:$title}) { clientMutationId }}`
-
-const updateTitleMutation = useMutation(updateTitleTDN)
-
-
-function updateAuthor(author: string) { updateAuthorMutation.executeMutation({id:iri.value,author:author}).then(result => {
-    console.log('updateAuthorMutation.executeMutation: result: ', result)
-}) }
-
-const updateAuthorTDN = gql`mutation UpdateAuthor($id:ID!,$author:String!) { updatePost (input:{id:$id,clientMutationId:"TDN02",author:$author}) { clientMutationId }}`
-
-const updateAuthorMutation = useMutation(updateAuthorTDN)
-
 
 function deletePost() {
     deletePostResult.executeMutation({ id: iri.value }).then((result) => {
@@ -140,60 +114,55 @@ const isDeletedResource = computed(() => {
     return (rmref?.value?.has(iri.value))
 })
 
-const expanded = ref(false)
-
 </script>
 
 <template>
     <div v-if="details">
-        <PostSummaryDebounce :pre="details" />
-        <!-- <p>{{ titleRef }}</p> -->
         <q-card class="my-card text-white q-mb-sm" :style="qcardStyle">
             <q-card-section>
-                <div class="text-h5 q-mt-sm q-mb-xs">
-                    <q-input v-model="details.title" filled label="Title" />
-                    <q-btn flat color="secondary" label="Save" @click="updateTitle(details.title)" />
-                    <q-input v-model="details.author" filled label="Author" />
-                    <q-btn flat color="secondary" label="Save" @click="updateAuthor(details.author)" />
-                    <div class="text-h7">{{ details.publishedDate }}</div>
-                </div>
-                <div class="col-auto text-caption q-pt-md row no-wrap items-center">
-                    <q-icon name="clock" />{{ details.version }}
-                    <q-icon name="star" />{{ details.stars }}
-                </div>
-            </q-card-section>
-            <q-card-actions>
-                <q-btn flat :disable="isDeletedResource" color="primary" label="Like" @click="pushChanges(details.stars + 1)" />
-                <q-space />
-                <q-btn color="grey" round flat dense :icon="expanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down'"
-                    @click="expanded = !expanded" />
-            </q-card-actions>
-            <q-slide-transition>
-                <div v-show="expanded">
-                    <q-separator />
-                    <q-card-section class="text-subtitle2">
+                <div class="row items-center no-wrap">
+                    <div class="col">
+                        <div class="text-h6">{{ details.title }}</div>
+                        <div class="text-h7">{{ details.author }} on {{ details.publishedDate }}</div>
                         <div class="text-h7">Updated on {{ details.updatedDate }}</div>
                         <div class="col-auto text-grey text-caption q-pt-md row no-wrap items-center">
                             <q-icon name="warning" />{{ iri }}
+                            <q-icon name="star" />{{ details.stars }}
+                            <q-icon name="clock" />{{ details.version }}
                         </div>
                         <div class="text-h7">See {{ details.reference }}</div>
-                        <div class="text-h7">Archived as {{ details.archiveUuid }}</div>
-                        <div class="text-h7">(barcode) {{ details.archiveEan13 }}</div>
-                        <div class="text-h7">Contact: {{ details.contact }}</div>
-                        <div class="text-h7">Archived as {{ details.archiveUuid }}</div>
-                        <div class="text-h7">(barcode) {{ details.archiveEan13 }}</div>
-                        <div class="text-h7">Contact: {{ details.contact }}</div>
-                    </q-card-section>
-                    <q-card-section class="q-pt-none">
-                        <div class="form-point">
-                            {{ details.content }}
-                        </div>
-                    </q-card-section>
-                    <q-card-actions>
-                        <q-btn flat :disable="isDeletedResource" color="secondary" label="Delete" @click="deletePost" />
-                    </q-card-actions>
+                    </div>
                 </div>
-            </q-slide-transition>
+            </q-card-section>
+            <q-card-section>
+                <div class="row items-center no-wrap">
+                    <div class="col">
+                        <div class="text-h7">Archived as {{ details.archiveUuid }}</div>
+                        <div class="text-h7">(barcode) {{ details.archiveEan13 }}</div>
+                        <div class="text-h7">Contact: {{ details.contact }}</div>
+                    </div>
+                </div>
+            </q-card-section>
+            <q-card-section>
+                <div class="row items-center no-wrap">
+                    <div class="col">
+                        <div class="text-h6">Signature</div>
+                        <div class="text-h7">{{ details.signature }}</div>
+                        <div class="text-h7">{{ details.signedBy }}</div>
+                    </div>
+                </div>
+            </q-card-section>
+            
+            <q-card-section class="q-pt-none">
+                <div class="form-point">
+                    {{ details.content }}
+                </div>
+            </q-card-section>
+            <q-separator dark />
+            <q-card-actions>
+                <q-btn :disable="isDeletedResource" color="primary" label="Like" @click="pushChanges" />
+                <q-btn :disable="isDeletedResource" color="primary" label="Delete" @click="deletePost" />
+            </q-card-actions>
         </q-card>
     </div>
 </template>

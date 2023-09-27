@@ -10,6 +10,12 @@ export const useIRIsDelta = (baseurl: string, options: UseEventSourceOptions = {
     const deleted = reactive(new Set<string>())
     //  inserted IRIs
     const inserted = reactive(new Set<string>())
+    //  
+    const eventType: Ref<string> = ref('message')
+    //  
+    const eventDataValue: Ref<any|null> = ref(null)
+    //
+    const lastEventId: Ref<string|null> = ref(null)
 
     //  stuff we need to keep, two event source
     const createFragmentEventSource = ref(null) as Ref<EventSource|null>
@@ -44,7 +50,7 @@ export const useIRIsDelta = (baseurl: string, options: UseEventSourceOptions = {
     //    request notification for topics .../posts/{id}#{op}; the modified AP/Mercure
     //    will send {id}#create, {id}#update and {id}#delete fragments
     //
-    const cfev = new EventSource(baseurl + '%23{op}', { withCredentials })
+    const cfev = new EventSource(baseurl, { withCredentials })
     createFragmentEventSource.value = cfev
 
     //  handlers
@@ -53,6 +59,34 @@ export const useIRIsDelta = (baseurl: string, options: UseEventSourceOptions = {
         cerror.value = null
     }
     //
+    cfev.addEventListener('create', (e) => {
+        //  pre
+        lastEventId.value = e.lastEventId
+        eventType.value = 'create'
+
+        //  ONLY one data line with JSON content
+        const [err, dataval] = jsparse(e.data)
+        if (err) {
+            console.log('failed parsing data value in create event')
+
+            eventDataValue.value = null
+        } else {
+            inserted.add(dataval['@id'])
+
+            eventDataValue.value = dataval
+        }
+    })
+
+    cfev.addEventListener('delete', (e) => {
+        //  ONLY one data line with JSON content
+        const [err, dataval] = jsparse(e.data)
+        if (err) {
+            console.log('failed parsing data value in delete event')
+        } else {
+            deleted.add(dataval['@id'])
+        }
+    })
+
     cfev.onmessage = (event) => {
         //  SSE supports several lines of data in the same event
         //  see https://html.spec.whatwg.org/multipage/server-sent-events.html
@@ -104,6 +138,7 @@ export const useIRIsDelta = (baseurl: string, options: UseEventSourceOptions = {
     return {
         deleted,
         inserted,
+        lastEventId, eventType, eventDataValue,
         createFragmentEventSource,
         cstatus,
         cerror,
