@@ -74,25 +74,38 @@ function handleCancelEdit() {
     isEditing.value = false
 }
 
-const qInputStyle = computed(() => {
+const qInputColor = computed(() => {
     if (isEditing.value) {
         if (conflict.value) {
-            return "background: radial-gradient(circle, #a5a2ff 0%, #014a88 100%)"
+            return "accent"
         }
-        return "background: radial-gradient(circle, #35a27f 0%, #014a88 100%)"
+        return "primary"
     }
-    return "background: radial-gradient(circle, #35a2ff 0%, #014a88 100%)"
+    return "teal"
 })
 
 </script>
 
 <template>
-        <!-- <q-input filled readonly v-model="og" label="Truth" style="background-color: beige;"/> -->
-    <q-input filled v-model="uv" :label="label" @blur="handleFocusLost" @focus="handleFocusGained" :style="qInputStyle"/>
-    <div v-if="conflict">
-        Conflict: {{ og }}
-        <q-icon name="close" class="cursor-pointer"  @click="handleCancelEdit" />
-        <q-icon name="warning" class="cursor-pointer" @click="handleAcceptTruth" />
+    <div>
+        <q-input filled v-model="uv" :label="label" @focus="handleFocusGained" dark :label-color="qInputColor"/>
+        <!-- <q-input filled v-model="uv" :label="label" @blur="handleFocusLost" @focus="handleFocusGained" dark :label-color="qInputColor"/> -->
+        <div v-if="conflict">
+            Conflict: {{ og }}
+            <q-btn flat secondary label="Cancel" @click="handleCancelEdit" />
+            <q-btn flat accent label="Replace" @click="handleAcceptTruth" />
+        </div>
     </div>
-    <!-- <q-btn flat color="secondary" label="(sim focus lost)" @click="handleFocusLost" /> -->
+    <q-btn flat color="secondary" label="(sim focus lost)" @click="handleFocusLost" />
 </template>
+
+<style>
+.content { color: hsl(0, 0%, 75%); }
+
+.conflict { color: hsl(32, 51%, 51%); }
+
+.edition { color: hsl(144, 39%, 48%); }
+
+.default { color: hsl(0, 0%, 76%); }
+
+</style>

@@ -136,13 +136,13 @@ const deletePostResult = useMutation(gql`
 //  computed style for deleted/inserted or (default) state of resources
 const qcardStyle = computed(() => {
     if (rmref?.value?.has(iri.value)) {
-        return "background-color: red"
+        return "background-color: darkred;"
     }
     if (insref?.value?.has(iri.value)) {
-        return "background: radial-gradient(circle, #a5f775 0%, #406835 100%)"
+        return "background-color: darkgreen;"
     }
 
-    return "background: radial-gradient(circle, #35a2ff 0%, #014a88 100%)"
+    return "background-color: hsl(0, 0%, 25%);"
 })
 
 //  computed flag to disable content for deleted resources; eg. disable the 'like' button
@@ -174,8 +174,8 @@ const updatePostAuthor = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
 <template>
     <div v-if="details">
         <!-- <p>{{ titleRef }}</p> -->
-        <q-card class="my-card text-white q-mb-sm" :style="qcardStyle">
-            <q-card-section>
+        <q-card class="my-card q-mb-sm" :style="qcardStyle">
+            <q-card-section style="color: hsl(0, 0%, 75%);">
                 <div class="text-h5 q-mt-sm q-mb-xs">
                     <FieldChangeTracker label="Title" :iri="iri" :og="details.title" :mut="updatePostTitle"/>
                     <FieldChangeTracker label="Author" :iri="iri" :og="details.author" :mut="updatePostAuthor"/>
@@ -186,6 +186,7 @@ const updatePostAuthor = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
                     <div class="text-h7">{{ details.publishedDate }}</div>
                 </div>
                 <div class="col-auto text-caption q-pt-md row no-wrap items-center">
+                    <q-icon name="warning" />{{ details.id }}
                     <q-icon name="clock" />{{ details.version }}
                     <q-icon name="star" />{{ details.stars }}
                 </div>
@@ -226,3 +227,7 @@ const updatePostAuthor = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
         </q-card>
     </div>
 </template>
+
+<style>
+q-card { color: hsl(0, 0%, 75%); }
+</style>

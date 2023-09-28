@@ -4,7 +4,10 @@ import { make, toObservable } from 'wonka';
 import { Kind, parse } from 'graphql'
 import type { DocumentNode, FieldNode, OperationDefinitionNode } from 'graphql';
 import type { OperationResult } from '@urql/core';
+
+import { useMercure, type MercureSource } from '@/lib/sse'
 import { MERCURE_ENTRYPOINT } from '@/config/api';
+import { toRefs, watch } from 'vue';
 
 // see [urql subscriptions](https://formidable.com/open-source/urql/docs/advanced/subscriptions/)
 //
@@ -47,7 +50,7 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
 
         const { context } = operation;
 
-        const subscriptions: EventSource[] = [];
+        const subscriptions: MercureSource[] = [];
 
         // get the initial request ready. this will return the mercureUrl for
         // the event source of updates
@@ -93,30 +96,50 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                     // this is a problem now, using the full URL will prevent the PHP API code from publishing updates
                     // when a mutation is executed that changes the resource; maybe CORS? maybe certs?
                     //console.log(mercureUrl);
-                    const mercureSubscription = new EventSource(mercureUrl.replace('https://host.docker.internal:8445', MERCURE_ENTRYPOINT), { withCredentials: false });
+                    //const mercureSubscription = new EventSource(mercureUrl.replace('https://host.docker.internal:8445', MERCURE_ENTRYPOINT), { withCredentials: false });
                     //const mercureSubscription = new EventSource(mercureUrl, { withCredentials: false });
-
-                    mercureSubscription.addEventListener('gqlsubs', (ev) => {
-                        console.log('Mercure Subscription recv message: ', ev)
-
-                        const datavals = ev.data.split("\n")
-                        // TODO detect/design event data; use 1st line 
-                        const newData = JSON.parse(datavals[0]);
-
-                        result = {
-                            ...result,
-                            data: { ...result.data, [selectionName]: { ...result.data[selectionName], ...newData } }
-                        };
-
-                        next(result);
+                    const mercure = useMercure(mercureUrl.replace('https://host.docker.internal:8445', MERCURE_ENTRYPOINT), { withCredentials: false }, {
+                        retry_baseline: 1000, retry_rng_span: 500
                     });
 
-                    // TODO need a way of signaling this too
-                    mercureSubscription.addEventListener('error', (ev) => {
-                        console.log('Mercure Subscription recv error: ', ev)
+                    const { lastEventID, eventType, dataFieldsValues } = toRefs(mercure)
+
+                    watch(lastEventID, () => {
+                        if (eventType.value === 'gqlsubs') {
+                            //  TODO decide/design; use 1st data line for now
+                            if (dataFieldsValues.value && dataFieldsValues.value.length > 0) {
+                                const dvalue = dataFieldsValues.value[0]
+                                result = {
+                                    ...result,
+                                    data: { ...result.data, [selectionName]: { ...result.data[selectionName], ...dvalue}}
+                                }
+
+                                next(result)
+                            }
+                        }
                     })
 
-                    subscriptions.push(mercureSubscription);
+                    // mercureSubscription.addEventListener('gqlsubs', (ev) => {
+                    //     console.log('Mercure Subscription recv message: ', ev)
+
+                    //     const datavals = ev.data.split("\n")
+                    //     // TODO detect/design event data; use 1st line 
+                    //     const newData = JSON.parse(datavals[0]);
+
+                    //     result = {
+                    //         ...result,
+                    //         data: { ...result.data, [selectionName]: { ...result.data[selectionName], ...newData } }
+                    //     };
+
+                    //     next(result);
+                    // });
+
+                    // TODO need a way of signaling this too
+                    // mercureSubscription.addEventListener('error', (ev) => {
+                    //     console.log('Mercure Subscription recv error: ', ev)
+                    // })
+
+                    subscriptions.push(mercure);
                 });
             }
         });

@@ -2,6 +2,8 @@ import { ref, computed, watch, shallowRef, type Ref, reactive } from 'vue'
 import { tryOnScopeDispose } from '@vueuse/core'
 import { useEventListener } from '@vueuse/core'
 import { ReconnectingEventSource } from './recon'
+import { v4 as uuidv4 } from 'uuid'
+
 export type UseEventSourceOptions = EventSourceInit
 
 export interface MercureSource {
@@ -11,11 +13,21 @@ export interface MercureSource {
   dataFieldsValues: any[] | null;
   status: string;
 
+  eventSource: EventSource | null;
+
   error: Event | null;
   lastEventIDOnError: string;
+
+  //  teardown
+  close: any;
 }
 
-export function useMercure(url: string, options: UseEventSourceOptions = {}, configuration?: any): MercureSource {
+interface UseMercureConfiguration {
+  retry_baseline?: number;
+  retry_rng_span?: number;
+}
+
+export function useMercure(url: string, options: UseEventSourceOptions = {}, configuration?: UseMercureConfiguration): MercureSource {
 
   const lastEventID: Ref<string> = ref('')
 
@@ -25,7 +37,13 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
 
   const status: Ref<string> = ref('CLOSED')
 
-  const es: Ref<EventSource | null> = ref(null)
+  const eventSource: Ref<EventSource | null> = ref(null)
+
+  //  urn
+  const urn: string = uuidv4()
+
+  //  GraphQL
+  const gqlSubscriptionID: Ref<string> = ref('')
 
   //  error
   const error: Ref<Event|null> = ref(null)
@@ -37,12 +55,24 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   const _retry_rng_span: number = (configuration?.retry_rng_span ?? 3000)
 
   //  reconnect with lastEventID
-  let _timer;
+  let _timer: number;
+
+  //  debugging
+  let _lastErrorTimeStamp: number;
+  
+  //  logging
+  const logid = computed(() => {
+    if (gqlSubscriptionID.value !== '') {
+      return urn + ":" + gqlSubscriptionID.value
+    } else {
+      return urn
+    }
+  })
 
   function reconnectURL(): string {
     let rx = url;
 
-    if (lastEventID.value) {
+    if (lastEventID.value !== '') {
       if (rx.indexOf('?') === -1) {
         rx += '?';
       } else {
@@ -92,19 +122,31 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   } = options
 
   //  setup event source listeners
-  watch(es, () => {
-    if (es.value) {
+  watch(eventSource, () => {
+    if (eventSource.value) {
       //  management
-      es.value.onopen = () => {
+      eventSource.value.onopen = () => {
         status.value = 'OPEN'
         error.value = null
+
+        //  reference value
+        _lastErrorTimeStamp = performance.now()
       }
       //  reconnect on error
-      es.value.onerror = (e) => {
+      eventSource.value.onerror = (e) => {
+        const mark = performance.now()
+        
+        const split = (mark - _lastErrorTimeStamp)
+
+        console.log(logid.value, ' error split: ', split / 1000 / 60, ' minutes')
+
+        //  reference
+        _lastErrorTimeStamp = mark
+
         error.value = e
         lastEventIDOnError.value = lastEventID.value
 
-        console.log('Mercure EventSource: Error, closing connection...')
+        console.log(logid.value, ' error, closing connection...')
 
         //  cleanup first
         close()
@@ -113,32 +155,39 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
         const timeout = Math.round(_retry_baseline + _retry_rng_span * Math.random());
         
         _timer = setTimeout(() => {
-          console.log('Mercure EventSource: attempt reconnection with lastEventID: ', lastEventID.value)
+          console.log(logid.value, ' error, will attempt to reconnect for lastEventID ', (lastEventID.value !== '' ? lastEventID.value : '(undefined)'))
+
           //  a new event source
-          es.value = new EventSource(reconnectURL(), { withCredentials })
+          eventSource.value = new EventSource(reconnectURL(), { withCredentials })
         }, timeout);
       }
       //  generic 'message' type
-      es.value.onmessage = (e: MessageEvent) => {
+      eventSource.value.onmessage = (e: MessageEvent) => {
         pre(e)
         //
         dataFieldsValues.value = datavals(e)
       }
       //  API Platform 'create', 'update' and 'delete' messages
-      es.value.addEventListener('create', (e) => {
+      eventSource.value.addEventListener('create', (e) => {
         //console.log('create: ', e.data)
         pre(e)
         //
         dataFieldsValues.value = jslift(datavals(e))
       })
-      es.value.addEventListener('update', (e) => {
+      eventSource.value.addEventListener('update', (e) => {
         //console.log('update: ', e.data)
         pre(e)
         //
         dataFieldsValues.value = jslift(datavals(e))
       })
-      es.value.addEventListener('delete', (e) => {
+      eventSource.value.addEventListener('delete', (e) => {
         //console.log('delete: ', e.data)
+        pre(e)
+        //
+        dataFieldsValues.value = jslift(datavals(e))
+      })
+      eventSource.value.addEventListener('gqlsubs', (e) => {
+        //
         pre(e)
         //
         dataFieldsValues.value = jslift(datavals(e))
@@ -148,12 +197,12 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   
   //  teardown
   const close = () => {
-    if (es.value) {
-      es.value.close()
-      es.value = null
-
+    if (eventSource.value) {
+      eventSource.value.close()
+      eventSource.value = null
       status.value = 'CLOSED'
     }
+    clearTimeout(_timer);
   }
 
   tryOnScopeDispose(() => {
@@ -161,15 +210,40 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   })
 
   //  startup
-  es.value = new EventSource(url, { withCredentials })
+  try {
+    function contains(x: string, v: string): boolean { return x.indexOf(v) >= 0; }
+
+    const ux = new URL(url)
+
+    if (contains(ux.search, "topic")) {
+      const sx = ux.search.split("/")
+      //  TODO ...
+      const prev = sx.indexOf("subscriptions")
+
+      if (prev + 1 < sx.length) {
+        gqlSubscriptionID.value = sx[prev + 1]
+      }
+    }
+
+    eventSource.value = new EventSource(url, { withCredentials })
+  }
+  catch (ex) {
+    console.log(ex)
+  }
 
   return reactive({
     lastEventID,
     eventType,
     dataFieldsValues,
     status,
+
+    eventSource,
+
     error,
-    lastEventIDOnError
+    lastEventIDOnError,
+
+    //  teardown
+    close
   })
 }
 
