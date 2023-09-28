@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, watch, toRefs } from 'vue';
+import { ref, watch, computed, toRefs } from 'vue';
 import { gql, useMutation, useQuery, useSubscription, type TypedDocumentNode } from '@urql/vue'
 
-const props = defineProps<{ iri: string, og: string, mut: TypedDocumentNode }>()
+const props = defineProps<{ iri: string, label: string, og: string, mut: TypedDocumentNode }>()
 
-const { iri, og } = toRefs(props)
+const { iri, label, og } = toRefs(props)
 
 const uv = ref(og.value)
 
@@ -49,6 +49,10 @@ function executeUpdateFieldMutation() {
 
 // const updatePostMutation = useMutation(updatePostTDN)
 
+function handleFocusGained() {
+    isEditing.value = true
+}
+
 function handleFocusLost() {
     if (uv.value !== og.value) {
         console.log('update:', og.value, ' => ', uv.value);
@@ -64,15 +68,31 @@ function handleAcceptTruth() {
     conflict.value = false
 }
 
+function handleCancelEdit() {
+    uv.value = og.value
+    conflict.value = false
+    isEditing.value = false
+}
+
+const qInputStyle = computed(() => {
+    if (isEditing.value) {
+        if (conflict.value) {
+            return "background: radial-gradient(circle, #a5a2ff 0%, #014a88 100%)"
+        }
+        return "background: radial-gradient(circle, #35a27f 0%, #014a88 100%)"
+    }
+    return "background: radial-gradient(circle, #35a2ff 0%, #014a88 100%)"
+})
+
 </script>
 
 <template>
-    <pre>{{ isEditing }}</pre>
-    <q-input filled readonly v-model="og" label="Truth" style="background-color: beige;"/>
-    <q-input filled v-model="uv" label="Field" @focus="isEditing = true"/>
-    <q-btn flat color="secondary" label="(blur)" @click="handleFocusLost" />
+        <!-- <q-input filled readonly v-model="og" label="Truth" style="background-color: beige;"/> -->
+    <q-input filled v-model="uv" :label="label" @blur="handleFocusLost" @focus="handleFocusGained" :style="qInputStyle"/>
     <div v-if="conflict">
-        <q-input filled readonly v-model="og" label="Conflict" style="background-color: lightcoral;"/>
-        <q-btn flat color="secondary" label="Accept" @click="handleAcceptTruth" />
+        Conflict: {{ og }}
+        <q-icon name="close" class="cursor-pointer"  @click="handleCancelEdit" />
+        <q-icon name="warning" class="cursor-pointer" @click="handleAcceptTruth" />
     </div>
+    <!-- <q-btn flat color="secondary" label="(sim focus lost)" @click="handleFocusLost" /> -->
 </template>

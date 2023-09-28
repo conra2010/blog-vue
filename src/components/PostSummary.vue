@@ -136,7 +136,7 @@ const deletePostResult = useMutation(gql`
 //  computed style for deleted/inserted or (default) state of resources
 const qcardStyle = computed(() => {
     if (rmref?.value?.has(iri.value)) {
-        return "background: radial-gradient(circle, #ff3535 0%, #650101 100%)"
+        return "background-color: red"
     }
     if (insref?.value?.has(iri.value)) {
         return "background: radial-gradient(circle, #a5f775 0%, #406835 100%)"
@@ -162,6 +162,13 @@ const updatePostTitle = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
     }
 }`
 
+
+const updatePostAuthor = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
+    updatePost (input:{id:$id,clientMutationId:"urn:blog-vue:25cda677",author:$fvalue}) {
+        clientMutationId
+    }
+}`
+
 </script>
 
 <template>
@@ -170,11 +177,12 @@ const updatePostTitle = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
         <q-card class="my-card text-white q-mb-sm" :style="qcardStyle">
             <q-card-section>
                 <div class="text-h5 q-mt-sm q-mb-xs">
-                    <FieldChangeTracker :iri="iri" :og="details.title" :mut="updatePostTitle"/>
-                    <q-input v-model="details.title" filled label="Title" />
+                    <FieldChangeTracker label="Title" :iri="iri" :og="details.title" :mut="updatePostTitle"/>
+                    <FieldChangeTracker label="Author" :iri="iri" :og="details.author" :mut="updatePostAuthor"/>
+                    <!-- <q-input v-model="details.title" filled label="Title" />
                     <q-btn flat color="secondary" label="Save" @click="updateTitle" />
                     <q-input v-model="details.author" filled label="Author" />
-                    <q-btn flat color="secondary" label="Save" @click="updateAuthor(details.author)" />
+                    <q-btn flat color="secondary" label="Save" @click="updateAuthor(details.author)" /> -->
                     <div class="text-h7">{{ details.publishedDate }}</div>
                 </div>
                 <div class="col-auto text-caption q-pt-md row no-wrap items-center">

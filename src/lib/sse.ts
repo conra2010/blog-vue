@@ -1,8 +1,177 @@
 import { ref, computed, watch, shallowRef, type Ref, reactive } from 'vue'
 import { tryOnScopeDispose } from '@vueuse/core'
 import { useEventListener } from '@vueuse/core'
-
+import { ReconnectingEventSource } from './recon'
 export type UseEventSourceOptions = EventSourceInit
+
+export interface MercureSource {
+
+  lastEventID: string;
+  eventType: string;
+  dataFieldsValues: any[] | null;
+  status: string;
+
+  error: Event | null;
+  lastEventIDOnError: string;
+}
+
+export function useMercure(url: string, options: UseEventSourceOptions = {}, configuration?: any): MercureSource {
+
+  const lastEventID: Ref<string> = ref('')
+
+  const eventType: Ref<string> = ref('')
+
+  const dataFieldsValues: Ref<any[] | null> = ref(null)
+
+  const status: Ref<string> = ref('CLOSED')
+
+  const es: Ref<EventSource | null> = ref(null)
+
+  //  error
+  const error: Ref<Event|null> = ref(null)
+
+  const lastEventIDOnError: Ref<string> = ref('')
+
+  //  configuration
+  const _retry_baseline: number = (configuration?.retry_baseline ?? 6000)
+  const _retry_rng_span: number = (configuration?.retry_rng_span ?? 3000)
+
+  //  reconnect with lastEventID
+  let _timer;
+
+  function reconnectURL(): string {
+    let rx = url;
+
+    if (lastEventID.value) {
+      if (rx.indexOf('?') === -1) {
+        rx += '?';
+      } else {
+        rx += '&';
+      }
+      rx += 'lastEventID=' + encodeURIComponent(lastEventID.value);
+    }
+
+    return rx
+  }
+
+  //  parsing
+  function pre(e: MessageEvent<any>) {
+    //  ?????
+    eventType.value = e.type
+    lastEventID.value = e.lastEventId
+  }
+
+  const jsparse = (str: string) => {
+    try {
+      return [null, JSON.parse(str)]
+    } catch (ex) {
+      return [null]
+    }
+  }
+
+  function datavals(e: MessageEvent<any>): string[] {
+    return e.data.split("\n")
+  }
+
+  function jslift(dvals: string[]): any[] {
+    const rx: any[] = []
+    dvals.map((value) => {
+      const [err, linejs] = jsparse(value)
+      if (err) {
+        console.log('recv data field is not json: ', value)
+      } else {
+        rx.push(linejs)
+      }
+    })
+    return rx
+  }
+
+  //  init event source
+  const {
+    withCredentials = false,
+  } = options
+
+  //  setup event source listeners
+  watch(es, () => {
+    if (es.value) {
+      //  management
+      es.value.onopen = () => {
+        status.value = 'OPEN'
+        error.value = null
+      }
+      //  reconnect on error
+      es.value.onerror = (e) => {
+        error.value = e
+        lastEventIDOnError.value = lastEventID.value
+
+        console.log('Mercure EventSource: Error, closing connection...')
+
+        //  cleanup first
+        close()
+        // reconnect after random timeout < max_retry_time
+        // TODO config options
+        const timeout = Math.round(_retry_baseline + _retry_rng_span * Math.random());
+        
+        _timer = setTimeout(() => {
+          console.log('Mercure EventSource: attempt reconnection with lastEventID: ', lastEventID.value)
+          //  a new event source
+          es.value = new EventSource(reconnectURL(), { withCredentials })
+        }, timeout);
+      }
+      //  generic 'message' type
+      es.value.onmessage = (e: MessageEvent) => {
+        pre(e)
+        //
+        dataFieldsValues.value = datavals(e)
+      }
+      //  API Platform 'create', 'update' and 'delete' messages
+      es.value.addEventListener('create', (e) => {
+        //console.log('create: ', e.data)
+        pre(e)
+        //
+        dataFieldsValues.value = jslift(datavals(e))
+      })
+      es.value.addEventListener('update', (e) => {
+        //console.log('update: ', e.data)
+        pre(e)
+        //
+        dataFieldsValues.value = jslift(datavals(e))
+      })
+      es.value.addEventListener('delete', (e) => {
+        //console.log('delete: ', e.data)
+        pre(e)
+        //
+        dataFieldsValues.value = jslift(datavals(e))
+      })
+    }
+  })
+  
+  //  teardown
+  const close = () => {
+    if (es.value) {
+      es.value.close()
+      es.value = null
+
+      status.value = 'CLOSED'
+    }
+  }
+
+  tryOnScopeDispose(() => {
+    close()
+  })
+
+  //  startup
+  es.value = new EventSource(url, { withCredentials })
+
+  return reactive({
+    lastEventID,
+    eventType,
+    dataFieldsValues,
+    status,
+    error,
+    lastEventIDOnError
+  })
+}
 
 /**
  * Reactive wrapper for EventSource / Mercure.
@@ -13,25 +182,31 @@ export type UseEventSourceOptions = EventSourceInit
  * @param events
  * @param options
  */
-export function useMercureEventSource(url: string | URL, events: Array<string> = [], options: UseEventSourceOptions = {}) {
-  
-    const dataFieldsValues: Ref<any[] | null> = ref(null)
+export function useMercureEventSource(url: string, events: Array<string> = [], options: UseEventSourceOptions = {}) {
 
-    const eventType: Ref<string> = ref('message')
+  const dataFieldsValues: Ref<any[] | null> = ref(null)
 
-    const lastEventId: Ref<string> = ref('')
+  const eventType: Ref<string> = ref('message')
 
-    const yetAnotherCounter: Ref<string> = ref('hello world!')
+  const lastEventId: Ref<string> = ref('')
 
-    const event: Ref<string | null> = ref(null)
-    const data: Ref<string | null> = ref(null)
+  const yetAnotherCounter: Ref<string> = ref('hello world!')
 
-    const status = ref('CONNECTING') as Ref<'OPEN' | 'CONNECTING' | 'CLOSED'>
-  
-    const eventSource = ref(null) as Ref<EventSource | null>
-    const error = shallowRef(null) as Ref<Event | null>
+  const event: Ref<string | null> = ref(null)
+  const data: Ref<string | null> = ref(null)
+
+  const status = ref('CONNECTING') as Ref<'OPEN' | 'CONNECTING' | 'CLOSED'>
+
+  const eventSource = ref(null) as Ref<EventSource | null>
+  const error = shallowRef(null) as Ref<Event | null>
 
   const history: Ref<string[]> = ref([])
+
+  const CONNECTING = 0;
+  const OPEN = 1;
+  const CLOSED = 2;
+
+  let _timer: number;
 
   const ecount = ref(0)
 
@@ -49,9 +224,9 @@ export function useMercureEventSource(url: string | URL, events: Array<string> =
 
   const jsparse = (str: string) => {
     try {
-        return [null, JSON.parse(str)]
+      return [null, JSON.parse(str)]
     } catch (ex) {
-        return [null]
+      return [null]
     }
   }
 
@@ -62,28 +237,91 @@ export function useMercureEventSource(url: string | URL, events: Array<string> =
   function jslift(dvals: string[]): any[] {
     const rx: any[] = []
     dvals.map((value) => {
-        const [err, linejs] = jsparse(value)
-        if (err) {
-            console.log('recv data field is not json: ', value)
-        } else {
-            rx.push(linejs)
-        }
+      const [err, linejs] = jsparse(value)
+      if (err) {
+        console.log('recv data field is not json: ', value)
+      } else {
+        rx.push(linejs)
+      }
     })
     return rx
   }
 
-  const es = new EventSource(url, { withCredentials })
+  eventSource.value = new EventSource(url, { withCredentials })
+  _setup()
 
-  eventSource.value = es
+  function _restart() {
+    let urlv = url;
 
-  es.onopen = () => {
-    status.value = 'OPEN'
-    error.value = null
+    if (lastEventId.value) {
+      if (urlv.indexOf('?') === -1) {
+        urlv += '?';
+      } else {
+        urlv += '&';
+      }
+      urlv += 'lastEventID=' + encodeURIComponent(lastEventId.value);
+    }
+
+    eventSource.value = new EventSource(urlv, { withCredentials });
+    _setup()
   }
 
-  es.onerror = (e) => {
-    status.value = 'CLOSED'
-    error.value = e
+  function _setup() {
+    if (eventSource.value) {
+      eventSource.value.onopen = () => {
+        status.value = 'OPEN'
+        error.value = null
+      }
+      eventSource.value.onerror = (e) => {
+        status.value = 'CLOSED'
+        error.value = e
+
+        if (eventSource.value) {
+          if (eventSource.value.readyState !== CLOSED) {
+            // reconnect with new object
+            eventSource.value.close();
+            eventSource.value = null;
+          }
+          // reconnect after random timeout < max_retry_time
+          const timeout = Math.round(3000 * Math.random());
+
+          _timer = setTimeout(() => _restart(), timeout);
+        }
+      }
+      eventSource.value.addEventListener('create', (e) => {
+        console.log('create: ', e.data)
+
+        pre(e)
+        //  eventType.value = 'create'
+        dataFieldsValues.value = jslift(datavals(e))
+      })
+
+      eventSource.value.addEventListener('update', (e) => {
+        console.log('update: ', e.data)
+
+
+        pre(e)
+        //  eventType.value = 'create'
+        dataFieldsValues.value = jslift(datavals(e))
+      })
+
+      eventSource.value.addEventListener('delete', (e) => {
+        console.log('delete: ', e.data)
+
+
+        pre(e)
+        //  eventType.value = 'create'
+        dataFieldsValues.value = jslift(datavals(e))
+      })
+
+      eventSource.value.onmessage = (e: MessageEvent) => {
+        console.log('message: ', e)
+
+        pre(e)
+        //
+        dataFieldsValues.value = datavals(e)
+      }
+    }
   }
 
   function pre(e: MessageEvent<any>) {
@@ -95,32 +333,8 @@ export function useMercureEventSource(url: string | URL, events: Array<string> =
     lastEventId.value = e.lastEventId
   }
 
-  es.addEventListener('create', (e) => {
-    console.log('create: ', e.data)
-
-    pre(e)
-    //  eventType.value = 'create'
-    dataFieldsValues.value = jslift(datavals(e))
-  })
-
-  es.addEventListener('update', (e) => {
-    console.log('update: ', e.data)
-  })
-
-  es.addEventListener('delete', (e) => {
-    console.log('delete: ', e.data)
-  })
-
-  es.onmessage = (e: MessageEvent) => {
-    console.log('message: ', e)
-
-    pre(e)
-    //
-    dataFieldsValues.value = datavals(e)
-  }
-
   for (const event_name of events) {
-    useEventListener(es, event_name, (e: Event & { data?: string }) => {
+    useEventListener(eventSource.value, event_name, (e: Event & { data?: string }) => {
       event.value = event_name
       data.value = e.data || null
     })
@@ -191,7 +405,7 @@ export const toDisplayStringx = (val) => {
     return val
   }
   if (val == null) {
-      return ""
+    return ""
   }
   // if (val && val.__v_isRef && isString(val.value)) {
   //   return val.value
@@ -200,7 +414,7 @@ export const toDisplayStringx = (val) => {
     return JSON.stringify(val, replacer, 2)
   }
   return String(val);
-    //return isString(val) ? val : val == null ? "" : isArray(val) || isObject(val) && (val.toString === objectToString || !isFunction(val.toString)) ? JSON.stringify(val, replacer, 2) : String(val);
+  //return isString(val) ? val : val == null ? "" : isArray(val) || isObject(val) && (val.toString === objectToString || !isFunction(val.toString)) ? JSON.stringify(val, replacer, 2) : String(val);
 };
 
 const replacer = (_key, val) => {
