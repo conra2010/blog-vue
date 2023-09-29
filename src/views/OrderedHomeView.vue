@@ -1,5 +1,4 @@
 <template>
-  <p>Hello World!</p>
   <div v-if="iris">
     <div class="q-pa-md">
       <q-infinite-scroll @load="onLoadMore" :offset="250">
@@ -22,7 +21,7 @@ import PostSummary from '@/components/PostSummary.vue';
 import { gql, useQuery } from '@urql/vue';
 import { ref, computed, watch } from 'vue';
 
-import { useIRIsDelta } from '@/lib/delta'
+import { useIRIsDelta, useMercureDelta } from '@/lib/delta'
 import { MERCURE_WELL_KNOWN, MERCURE_TOPICS_PREFIX } from '@/config/api';
 
 const queryIndexPostsSort = [{stars: "ASC"}]
@@ -70,11 +69,11 @@ const refetchQueryNetworkOnly = () => {
 
 //  testing this to keep track of inserted/removed resource IRIs from server events
 //
-const delta = useIRIsDelta(MERCURE_WELL_KNOWN + '?topic=' + MERCURE_TOPICS_PREFIX + '/posts/{id}')
+const delta = useMercureDelta(MERCURE_WELL_KNOWN + '?topic=' + MERCURE_TOPICS_PREFIX + '/posts/{id}')
 
-watch(delta.lastEventId, () => {
+watch(delta.lastEventID, () => {
   if (delta.eventType.value == 'create') {
-    const dtaval = delta.eventDataValue.value
+    const dtaval = delta.firstDataField.value
     if (dtaval && dtaval['@id'] && dtaval['title']) {
       queryIndexPostsResponse.data.value.posts.unshift({ id: dtaval['@id'], title: dtaval['title'] })
     }

@@ -6,35 +6,70 @@ import { v4 as uuidv4 } from 'uuid'
 
 export type UseEventSourceOptions = EventSourceInit
 
+/**
+ * An event source for the Mercure Hub
+ * 
+ */
 export interface MercureSource {
-
+  /**
+   * Last received event ID
+   */
   lastEventID: string;
+  /**
+   * Last received event type
+   */
   eventType: string;
+  /**
+   * Event data: lines parsed as JSON
+   */
   dataFieldsValues: any[] | null;
+  /**
+   * Testing 'computed' for easy access
+   */
+  firstDataField: any | null;
+  /**
+   * The status of the event sourc
+   */
   status: string;
-
+  /**
+   * The actual event source
+   */
   eventSource: EventSource | null;
-
+  /**
+   * Error signaling
+   */
   error: Event | null;
+  //  to debug
   lastEventIDOnError: string;
-
   //  teardown
   close: any;
 }
 
-interface UseMercureConfiguration {
+export interface UseMercureConfiguration {
+  /**
+   * will try to reconnect at baseline + rng span
+   */
   retry_baseline?: number;
   retry_rng_span?: number;
 }
 
 export function useMercure(url: string, options: UseEventSourceOptions = {}, configuration?: UseMercureConfiguration): MercureSource {
-
+  //  data about the event received
   const lastEventID: Ref<string> = ref('')
 
   const eventType: Ref<string> = ref('')
 
   const dataFieldsValues: Ref<any[] | null> = ref(null)
 
+  const firstDataField = computed(() => {
+    if (dataFieldsValues.value !== null) {
+      return dataFieldsValues.value[0]
+    }
+    
+    return null
+  })
+
+  //  status and event sourc
   const status: Ref<string> = ref('CLOSED')
 
   const eventSource: Ref<EventSource | null> = ref(null)
@@ -42,7 +77,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   //  urn
   const urn: string = uuidv4()
 
-  //  GraphQL
+  //  GraphQL 
   const gqlSubscriptionID: Ref<string> = ref('')
 
   //  error
@@ -69,6 +104,12 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     }
   })
 
+  /**
+   * adds the known last event ID to the URL for
+   * Mercure to get us up to speed on events since
+   *
+   * @return  {string}  the URL to reconnect to
+   */
   function reconnectURL(): string {
     let rx = url;
 
@@ -84,13 +125,14 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     return rx
   }
 
-  //  parsing
+  //  shared for all event types
   function pre(e: MessageEvent<any>) {
     //  ?????
     eventType.value = e.type
     lastEventID.value = e.lastEventId
   }
 
+  //  parsing into JSON
   const jsparse = (str: string) => {
     try {
       return [null, JSON.parse(str)]
@@ -99,10 +141,12 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     }
   }
 
+  //  see event source spec
   function datavals(e: MessageEvent<any>): string[] {
     return e.data.split("\n")
   }
 
+  //  data: as JSON
   function jslift(dvals: string[]): any[] {
     const rx: any[] = []
     dvals.map((value) => {
@@ -134,6 +178,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
       }
       //  reconnect on error
       eventSource.value.onerror = (e) => {
+        //  debugging Mercure disconnects (config option)
         const mark = performance.now()
         
         const split = (mark - _lastErrorTimeStamp)
@@ -212,7 +257,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   //  startup
   try {
     function contains(x: string, v: string): boolean { return x.indexOf(v) >= 0; }
-
+    //  debug, trying to get the GraphQL subscription ID here
     const ux = new URL(url)
 
     if (contains(ux.search, "topic")) {
@@ -228,6 +273,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     eventSource.value = new EventSource(url, { withCredentials })
   }
   catch (ex) {
+    //  TODO what to tell our client?
     console.log(ex)
   }
 
@@ -235,6 +281,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     lastEventID,
     eventType,
     dataFieldsValues,
+    firstDataField,
     status,
 
     eventSource,

@@ -183,7 +183,6 @@ const updatePostAuthor = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
                     <q-btn flat color="secondary" label="Save" @click="updateTitle" />
                     <q-input v-model="details.author" filled label="Author" />
                     <q-btn flat color="secondary" label="Save" @click="updateAuthor(details.author)" /> -->
-                    <div class="text-h7">{{ details.publishedDate }}</div>
                 </div>
                 <div class="col-auto text-caption q-pt-md row no-wrap items-center">
                     <q-icon name="warning" />{{ details.id }}
@@ -196,12 +195,13 @@ const updatePostAuthor = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
                 <q-btn flat :disable="isDeletedResource" color="primary" label="Like" @click="pushChanges(details.stars + 1)" />
                 <q-space />
                 <q-btn color="grey" round flat dense :icon="expanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down'"
-                    @click="expanded = !expanded" />
+                @click="expanded = !expanded" />
             </q-card-actions>
             <q-slide-transition>
                 <div v-show="expanded">
                     <q-separator />
                     <q-card-section class="text-subtitle2">
+                        <div class="text-h7">Published on {{ details.publishedDate }}</div>
                         <div class="text-h7">Updated on {{ details.updatedDate }}</div>
                         <div class="col-auto text-grey text-caption q-pt-md row no-wrap items-center">
                             <q-icon name="warning" />{{ iri }}

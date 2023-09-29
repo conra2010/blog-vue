@@ -1,5 +1,34 @@
-import { ref, shallowRef, type Ref, computed, reactive } from 'vue';
+import { watch, ref, shallowRef, type Ref, computed, reactive, toRefs } from 'vue';
 import { type UseEventSourceOptions, tryOnScopeDispose } from '@vueuse/core';
+import { useMercure, type UseMercureConfiguration } from './sse';
+
+export const useMercureDelta = (baseurl: string, options: UseEventSourceOptions = {}, configuration?: UseMercureConfiguration) => {
+
+    //  info we want
+    const inserted = reactive(new Set<string>())
+
+    const deleted = reactive(new Set<string>())
+
+    //  our precious event source
+    const mercure = useMercure(baseurl, options, configuration)
+
+    const { lastEventID, eventType, firstDataField } = toRefs(mercure)
+
+    //  and the events we're interested in
+    watch(lastEventID, () => {
+        if (eventType.value === 'create') {
+            inserted.add(firstDataField.value['@id'])
+        }
+        if (eventType.value === 'delete') {
+            deleted.add(firstDataField.value['@id'])
+        }
+    })
+
+    return {
+        inserted, deleted,
+        lastEventID, eventType, firstDataField
+    }
+}
 
 //  will use the #create and #delete topics (modified API Platform/Mercure) to 
 //  keep track of inserted/removed IRIs
