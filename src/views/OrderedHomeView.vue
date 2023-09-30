@@ -1,4 +1,11 @@
 <template>
+      <q-card class="my-card" style="color: black;">
+        <q-card-section>
+            <p>isOnline: {{ network.isOnline }}</p>
+            <p>onlineAt: {{ useDateFormat(network.onlineAt, 'YYYY-MM-DD HH:mm:ss SSS') }}</p>
+            <p>offlineAt: {{ useDateFormat(network.offlineAt, 'YYYY-MM-DD HH:mm:ss SSS') }}</p>
+        </q-card-section>
+      </q-card>
   <div v-if="iris">
     <div class="q-pa-md">
       <q-infinite-scroll @load="onLoadMore" :offset="250">
@@ -19,10 +26,14 @@
 <script setup lang="ts">
 import PostSummary from '@/components/PostSummary.vue';
 import { gql, useQuery } from '@urql/vue';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, reactive } from 'vue';
 
 import { useIRIsDelta, useMercureDelta } from '@/lib/delta'
 import { MERCURE_WELL_KNOWN, MERCURE_TOPICS_PREFIX } from '@/config/api';
+
+import { useNetwork, useDateFormat } from '@vueuse/core'
+
+const network = reactive(useNetwork())
 
 const queryIndexPostsSort = [{stars: "ASC"}]
 

@@ -1,8 +1,10 @@
-import { ref, computed, watch, shallowRef, type Ref, reactive } from 'vue'
-import { tryOnScopeDispose } from '@vueuse/core'
-import { useEventListener } from '@vueuse/core'
+import { ref, computed, watch, shallowRef, type Ref, reactive, toRefs } from 'vue'
+import { refDebounced, tryOnScopeDispose, watchDebounced } from '@vueuse/core'
+import { useEventListener, useWebWorkerFn } from '@vueuse/core'
 import { ReconnectingEventSource } from './recon'
 import { v4 as uuidv4 } from 'uuid'
+
+import { useNetwork, useDateFormat } from '@vueuse/core'
 
 export type UseEventSourceOptions = EventSourceInit
 
@@ -94,7 +96,22 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
 
   //  debugging
   let _lastErrorTimeStamp: number;
-  
+
+  //  network status
+  const { isOnline, onlineAt, offlineAt } = useNetwork()
+
+  watchDebounced(isOnline, () => {
+    if (!isOnline.value) {
+      //  went offline
+      console.log('useMercure : network is now offline : ', useDateFormat(offlineAt.value, 'YYYY-MM-DD HH:mm:ss SSS').value)
+      close()
+    } else {
+      //  went online
+      console.log('useMercure : network is now online : ', useDateFormat(onlineAt.value, 'YYYY-MM-DD HH:mm:ss SSS').value)
+      reconnect()
+    }
+  }, { debounce: 1000, maxWait: 5000 })
+
   //  logging
   const logid = computed(() => {
     if (gqlSubscriptionID.value !== '') {
@@ -165,6 +182,21 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     withCredentials = false,
   } = options
 
+  function reconnect() {
+
+    close()
+
+    // reconnect after random timeout
+    const timeout = Math.round(_retry_baseline + _retry_rng_span * Math.random());
+        
+    _timer = setTimeout(() => {
+      console.log(logid.value, 'Will attempt to reconnect for lastEventID ', (lastEventID.value !== '' ? lastEventID.value : '(undefined)'))
+
+      //  a new event source
+      eventSource.value = new EventSource(reconnectURL(), { withCredentials })
+    }, timeout);
+  }
+
   //  setup event source listeners
   watch(eventSource, () => {
     if (eventSource.value) {
@@ -195,16 +227,9 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
 
         //  cleanup first
         close()
-        // reconnect after random timeout < max_retry_time
-        // TODO config options
-        const timeout = Math.round(_retry_baseline + _retry_rng_span * Math.random());
-        
-        _timer = setTimeout(() => {
-          console.log(logid.value, ' error, will attempt to reconnect for lastEventID ', (lastEventID.value !== '' ? lastEventID.value : '(undefined)'))
 
-          //  a new event source
-          eventSource.value = new EventSource(reconnectURL(), { withCredentials })
-        }, timeout);
+        //  try
+        reconnect()
       }
       //  generic 'message' type
       eventSource.value.onmessage = (e: MessageEvent) => {
@@ -255,27 +280,32 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   })
 
   //  startup
-  try {
-    function contains(x: string, v: string): boolean { return x.indexOf(v) >= 0; }
-    //  debug, trying to get the GraphQL subscription ID here
-    const ux = new URL(url)
-
-    if (contains(ux.search, "topic")) {
-      const sx = ux.search.split("/")
-      //  TODO ...
-      const prev = sx.indexOf("subscriptions")
-
-      if (prev + 1 < sx.length) {
-        gqlSubscriptionID.value = sx[prev + 1]
+  const startup = () => {
+    try {
+      function contains(x: string, v: string): boolean { return x.indexOf(v) >= 0; }
+      //  debug, trying to get the GraphQL subscription ID here
+      const ux = new URL(url)
+      
+      if (contains(ux.search, "topic")) {
+        const sx = ux.search.split("/")
+        //  TODO ...
+        const prev = sx.indexOf("subscriptions")
+        
+        if (prev + 1 < sx.length) {
+          gqlSubscriptionID.value = sx[prev + 1]
+        }
       }
+      
+      eventSource.value = new EventSource(url, { withCredentials })
     }
+    catch (ex) {
+      //  TODO what to tell our client?
+      console.log(ex)
+    }
+  }
 
-    eventSource.value = new EventSource(url, { withCredentials })
-  }
-  catch (ex) {
-    //  TODO what to tell our client?
-    console.log(ex)
-  }
+  //  and...
+  startup()
 
   return reactive({
     lastEventID,

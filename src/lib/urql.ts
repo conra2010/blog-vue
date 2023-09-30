@@ -6,7 +6,7 @@ import type { DocumentNode, FieldNode, OperationDefinitionNode } from 'graphql';
 import type { OperationResult } from '@urql/core';
 
 import { useMercure, type MercureSource } from '@/lib/sse'
-import { MERCURE_ENTRYPOINT } from '@/config/api';
+import { CADDY_MERCURE_URL, MERCURE_ENTRYPOINT } from '@/config/api';
 import { toRefs, watch } from 'vue';
 
 // see [urql subscriptions](https://formidable.com/open-source/urql/docs/advanced/subscriptions/)
@@ -98,7 +98,10 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                     //console.log(mercureUrl);
                     //const mercureSubscription = new EventSource(mercureUrl.replace('https://host.docker.internal:8445', MERCURE_ENTRYPOINT), { withCredentials: false });
                     //const mercureSubscription = new EventSource(mercureUrl, { withCredentials: false });
-                    const mercure = useMercure(mercureUrl.replace('https://host.docker.internal:8445', MERCURE_ENTRYPOINT), { withCredentials: false }, {
+
+                    //  change the URL Caddy sees to the URL the web app needs
+                    const mercure = useMercure(mercureUrl.replace(CADDY_MERCURE_URL, MERCURE_ENTRYPOINT), { withCredentials: false }, {
+                        //  reconfigure timeout on error
                         retry_baseline: 1000, retry_rng_span: 500
                     });
 

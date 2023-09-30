@@ -14,7 +14,11 @@ const knownEventIDs: Ref<string[]> = ref([])
 
 const { lastEventID } = toRefs(es)
 
+const eventCount = ref(0)
+
 watch(lastEventID, () => {
+    eventCount.value++
+
     if (knownEventIDs.value.unshift(es.lastEventID) >= 16) {
         //  keep it short
         knownEventIDs.value.pop()
@@ -24,5 +28,6 @@ watch(lastEventID, () => {
 </script>
 
 <template>
+    <pre>{{ eventCount }}</pre>
     <MercureEventSourceDebug :source="es" />
 </template>
