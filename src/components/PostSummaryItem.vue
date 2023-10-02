@@ -1,8 +1,11 @@
 <script lang="ts" setup>
-import { computed, ref, toRefs, type Ref } from 'vue';
+import { computed, ref, toRefs, type Ref,
+    onBeforeMount, onBeforeUpdate,
+    onMounted,
+    onBeforeUnmount, onUnmounted } from 'vue';
 import { gql, useMutation } from '@urql/vue'
 import PostSummary from './PostSummary.vue';
-import { useOnline } from '@vueuse/core';
+import { useOnline, tryOnBeforeUnmount } from '@vueuse/core';
 
 //  component receives the Post IRI as prop
 const props = defineProps<{
@@ -14,6 +17,26 @@ const props = defineProps<{
 const { iri, rmref, insref } = toRefs(props)
 
 const isOnline = useOnline()
+
+onBeforeMount(() => {
+    console.log('on before mount')
+})
+
+onMounted(() => {
+    console.log('on mounted')
+})
+
+onBeforeUpdate(() => {
+    console.log('on before update')
+})
+
+onBeforeUnmount(() => {
+    console.log('on before unmount')
+})
+
+onUnmounted(() => {
+    console.log('on unmounted')
+})
 
 function deletePost() {
     deletePostResult.executeMutation({ id: iri.value }).then((result) => {
@@ -45,10 +68,13 @@ function onRight({ reset }) {
     finalize(reset)
 }
 
+onBeforeUnmount(() => {
+    clearTimeout(timer)
+})
+
 </script>
 
 <template>
-    {{ isOnline }}
     <q-slide-item dark @left="onLeft" right-color="red" @right="onRight">
         <template v-slot:left>
             <div class="row items-center">

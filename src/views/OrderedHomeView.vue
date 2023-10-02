@@ -1,23 +1,17 @@
 <template>
   {{ isOnline }}
   <div v-if="iris">
-    <div class="q-pa-md">
-      <q-list bordered separator>
-        <q-infinite-scroll @load="onLoadMore" :offset="250">
-          <div v-for="(item, index) in infScrollSlice" :key="item" class="caption">
-            <!-- <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Rerum repellendus sit voluptate voluptas eveniet porro. Rerum blanditiis perferendis totam, ea at omnis vel numquam exercitationem aut, natus minima, porro labore.</p> -->
-              <PostSummaryItem
-                :iri="item" :rmref="delta.deleted" :insref="delta.inserted"
-                />
-          </div>
-          <template v-slot:loading>
-            <div class="row justify-center q-my-md">
-              <q-spinner-dots color="primary" size="40px" />
-            </div>
-          </template>
-        </q-infinite-scroll>
-      </q-list>
-    </div>
+    <q-virtual-scroll
+      virtualScrollSliceSize="10"
+      virtualScrollItemSize="330"
+      style="max-height: 1000px;"
+      :items="iris"
+      separator
+      v-slot="{ item, index }">
+      <q-item :key="index">
+        <PostSummaryItem :iri="item" :rmref="delta.deleted" :insref="delta.inserted"/>
+      </q-item>
+    </q-virtual-scroll>
   </div>
 </template>
 
@@ -33,7 +27,7 @@ import { useOnline } from '@vueuse/core';
 
 const isOnline = useOnline()
 
-const queryIndexPostsSort = [{stars: "ASC"}]
+const queryIndexPostsSort = [{id: "ASC"}]
 
 //  a graphql query to get the IRIs of posts
 const queryIndexPostsResponse = useQuery({
@@ -41,7 +35,6 @@ const queryIndexPostsResponse = useQuery({
     query QueryIndexPosts ($order: [PostFilter_order]) {
       posts (order: $order) {
         id
-        title
       }
     }
   `, variables: { order: queryIndexPostsSort }
@@ -51,7 +44,9 @@ const queryIndexPostsResponse = useQuery({
 const iris = computed(() => {
   if (queryIndexPostsResponse.data?.value === undefined) return []
 
-  return queryIndexPostsResponse.data?.value.posts.map((p) => p.id)
+  let rx: string[] = queryIndexPostsResponse.data?.value.posts.map((p) => p.id)
+
+  return rx
 })
 
 //  currently shown IRIs up to this array index
@@ -84,9 +79,12 @@ const delta = useMercureDelta(MERCURE_WELL_KNOWN + '?topic=' + MERCURE_TOPICS_PR
 watch(delta.lastEventID, () => {
   if (delta.eventType.value == 'create') {
     const dtaval = delta.firstDataField.value
-    if (dtaval && dtaval['@id'] && dtaval['title']) {
-      queryIndexPostsResponse.data.value.posts.unshift({ id: dtaval['@id'], title: dtaval['title'] })
+    if (dtaval && dtaval['@id']) {
+      queryIndexPostsResponse.data.value.posts.unshift({ id: dtaval['@id'] })
     }
+  }
+  if (delta.eventType.value == 'delete') {
+    refetchQueryNetworkOnly()
   }
 })
 
