@@ -122,26 +122,6 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                         }
                     })
 
-                    // mercureSubscription.addEventListener('gqlsubs', (ev) => {
-                    //     console.log('Mercure Subscription recv message: ', ev)
-
-                    //     const datavals = ev.data.split("\n")
-                    //     // TODO detect/design event data; use 1st line 
-                    //     const newData = JSON.parse(datavals[0]);
-
-                    //     result = {
-                    //         ...result,
-                    //         data: { ...result.data, [selectionName]: { ...result.data[selectionName], ...newData } }
-                    //     };
-
-                    //     next(result);
-                    // });
-
-                    // TODO need a way of signaling this too
-                    // mercureSubscription.addEventListener('error', (ev) => {
-                    //     console.log('Mercure Subscription recv error: ', ev)
-                    // })
-
                     subscriptions.push(mercure);
                 });
             }

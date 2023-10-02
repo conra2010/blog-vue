@@ -26,13 +26,12 @@ const errorstr = computed(() => {
 </script>
 
 <template>
-    <q-card class="my-card">
+    <q-card class="top-card">
         <q-card-section>
-            <q-input v-model="errorstr" readonly label="Error" stack-label />
-            <q-input v-model="lastEventIDOnError" readonly label="Last Event ID on Error" stack-label />
-            <q-input v-model="lastEventID" readonly label="Last Event ID" stack-label />
-            <q-input v-model="eventType" readonly label="Event Type" stack-label />
-            <q-input v-model="status" readonly label="Source Status" stack-label />
+            <p>last event type: {{ eventType }}</p>
+            <p>lastEventID: {{ lastEventID }}</p>
+            <p>status: {{ status }}</p>
+            <p>lastEventID on error: {{ lastEventIDOnError }}</p>
         </q-card-section>
         <q-card-actions>
             <q-btn color="grey" round flat dense :icon="expanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down'"
@@ -42,6 +41,7 @@ const errorstr = computed(() => {
             <div v-show="expanded">
                 <q-separator />
                 <q-card-section style="color: black;"  class="text-subtitle2">
+                    <p>event IDs</p>
                     <div class="q-ma-md">
                         <q-scroll-area style="height: 500px; ">
                             <div v-for="(item, index) in eventIDsHistory" :key="index" class="q-py-xs">
@@ -54,3 +54,9 @@ const errorstr = computed(() => {
         </q-slide-transition>
     </q-card>
 </template>
+
+<style>
+.top-card {
+    color: black;
+}
+</style>

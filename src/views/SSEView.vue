@@ -28,6 +28,5 @@ watch(lastEventID, () => {
 </script>
 
 <template>
-    <pre>{{ eventCount }}</pre>
     <MercureEventSourceDebug :source="es" />
 </template>

@@ -1,39 +1,30 @@
 <template>
-      <q-card class="my-card" style="color: black;">
-        <q-card-section>
-            <p>isOnline: {{ network.isOnline }}</p>
-            <p>onlineAt: {{ useDateFormat(network.onlineAt, 'YYYY-MM-DD HH:mm:ss SSS') }}</p>
-            <p>offlineAt: {{ useDateFormat(network.offlineAt, 'YYYY-MM-DD HH:mm:ss SSS') }}</p>
-        </q-card-section>
-      </q-card>
   <div v-if="iris">
     <div class="q-pa-md">
-      <q-infinite-scroll @load="onLoadMore" :offset="250">
-        <div v-for="(item, index) in infScrollSlice" :key="item" class="caption">
-          <!-- <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Rerum repellendus sit voluptate voluptas eveniet porro. Rerum blanditiis perferendis totam, ea at omnis vel numquam exercitationem aut, natus minima, porro labore.</p> -->
-          <PostSummary :iri="item" :rmref="delta.deleted" :insref="delta.inserted"/>
-        </div>
-        <template v-slot:loading>
-          <div class="row justify-center q-my-md">
-            <q-spinner-dots color="primary" size="40px" />
+      <q-list bordered separator>
+        <q-infinite-scroll @load="onLoadMore" :offset="250">
+          <div v-for="(item, index) in infScrollSlice" :key="item" class="caption">
+            <!-- <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Rerum repellendus sit voluptate voluptas eveniet porro. Rerum blanditiis perferendis totam, ea at omnis vel numquam exercitationem aut, natus minima, porro labore.</p> -->
+              <PostSummaryItem :iri="item" :rmref="delta.deleted" :insref="delta.inserted"/>
           </div>
-        </template>
-      </q-infinite-scroll>
+          <template v-slot:loading>
+            <div class="row justify-center q-my-md">
+              <q-spinner-dots color="primary" size="40px" />
+            </div>
+          </template>
+        </q-infinite-scroll>
+      </q-list>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import PostSummary from '@/components/PostSummary.vue';
+import PostSummaryItem from '@/components/PostSummaryItem.vue';
 import { gql, useQuery } from '@urql/vue';
 import { ref, computed, watch, reactive } from 'vue';
 
 import { useIRIsDelta, useMercureDelta } from '@/lib/delta'
 import { MERCURE_WELL_KNOWN, MERCURE_TOPICS_PREFIX } from '@/config/api';
-
-import { useNetwork, useDateFormat } from '@vueuse/core'
-
-const network = reactive(useNetwork())
 
 const queryIndexPostsSort = [{stars: "ASC"}]
 
@@ -63,10 +54,11 @@ const infScrollSlice = computed(() => { return iris.value.slice(0, infScrollMark
 
 function onLoadMore(index, done) {
   setTimeout(() => {
+    console.log('loading more for slice : [0, ', infScrollMark.value, ']')
     if (infScrollMark.value < iris.value.length) {
       infScrollMark.value = Math.min(iris.value.length, infScrollMark.value + 10)
+      console.log('inf slice new length : [0, ', infScrollMark.value, ']')
     }
-    console.log('inf slice: [0, ', infScrollMark.value, ']')
     done()
   }, 2000)
 }

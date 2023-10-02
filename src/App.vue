@@ -1,51 +1,78 @@
 <script setup lang="ts">
-  import { RouterView } from 'vue-router'
+import { RouterView } from 'vue-router'
 
-  import { forwardSubscription } from '@/lib/urql'
+import { forwardSubscription } from '@/lib/urql'
 
-  import { Client, provideClient, cacheExchange, fetchExchange, subscriptionExchange } from '@urql/vue';
-  import { devtoolsExchange } from '@urql/devtools'
+import { Client, provideClient, cacheExchange, fetchExchange, subscriptionExchange } from '@urql/vue';
+import { devtoolsExchange } from '@urql/devtools'
 
-  import { GRAPHQL_ENTRYPOINT } from '@/config/api';
-  //  create a urql client to execute GraphQL operations
-  const client = new Client({
-    url: GRAPHQL_ENTRYPOINT,
-    exchanges: [
-      //  Google Chrome has urql dev tools, uncomment this to send data to them
-      //devtoolsExchange,
-      cacheExchange, fetchExchange,
-      //  see lib/urql.ts
-      subscriptionExchange({forwardSubscription})
-    ],
-  });
+import { GRAPHQL_ENTRYPOINT } from '@/config/api';
 
-  provideClient(client);
+import { useNetwork, useDateFormat } from '@vueuse/core'
+
+const {isOnline} = useNetwork()
+
+//  create a urql client to execute GraphQL operations
+const client = new Client({
+  url: GRAPHQL_ENTRYPOINT,
+  exchanges: [
+    //  Google Chrome has urql dev tools, uncomment this to send data to them
+    //devtoolsExchange,
+    cacheExchange, fetchExchange,
+    //  see lib/urql.ts
+    subscriptionExchange({ forwardSubscription })
+  ],
+});
+
+provideClient(client);
 </script>
 
 <template>
-  <div class="q-pa-md">
-    <q-toolbar class="bg-primary text-white q-my-md shadow-2">
-      <q-btn flat round dense icon="menu" class="q-mr-sm" />
-      <q-separator dark vertical inset />
-      <q-btn stretch flat label="Home" to="/" />
-      <q-separator dark vertical inset />
-      <q-btn stretch flat label="Ordered" to="/ordered" />
-      <q-separator dark vertical inset />
-      <q-btn stretch flat label="Table" to="/table" />
-      <q-separator dark vertical inset />
-      <q-btn stretch flat label="Test" to="/test" />
-      <q-space />
-      <q-separator dark vertical />
-      <q-btn stretch flat label="SSE" to="/sse" />
-      <q-separator dark vertical />
-      <q-btn stretch flat label="About" to="/about"/>
-    </q-toolbar>
-  </div>
-  <div class="v-cloak">
-    <router-view v-slot="{ Component }">
-      <keep-alive>
-        <component :is="Component" :key="$route.fullPath"></component>
-      </keep-alive>
-    </router-view>
-  </div>
+  <q-layout view="hHh lpR fFf">
+    <q-header elevated class="bg-primary text-white" height-hint="98">
+      <!-- <q-toolbar>
+        <q-toolbar-title>
+          <q-avatar>
+            <img src="https://cdn.quasar.dev/logo-v2/svg/logo-mono-white.svg">
+          </q-avatar>
+          Title
+        </q-toolbar-title>
+      </q-toolbar> -->
+
+      <q-tabs align="left">
+        <q-route-tab to="/ordered" label="Posts" />
+        <q-route-tab to="/sse" label="SSE" />
+        <q-route-tab to="/about" label="About" />
+      </q-tabs>
+    </q-header>
+
+    <q-page-container>
+      <router-view v-slot="{ Component }">
+        <keep-alive>
+          <component :is="Component" :key="$route.fullPath"></component>
+        </keep-alive>
+      </router-view>
+    </q-page-container>
+
+    <q-footer elevated class="bg-grey-8 text-white">
+      <q-toolbar>
+          <q-btn flat disable :label="isOnline ? 'online' : 'offline'" />
+      </q-toolbar>
+    </q-footer>
+
+  </q-layout>
 </template>
+        <!-- <q-header>
+          <q-tabs>
+            <q-route-tab to="/ordered" name="posts" label="Posts" />
+            <q-route-tab to="/sse" name="sse" label="SSE" />
+            <q-route-tab to="/about" name="about" label="About" />
+          </q-tabs>
+        </q-header>
+
+            <router-view v-slot="{ Component }">
+              <keep-alive>
+                <component :is="Component" :key="$route.fullPath"></component>
+              </keep-alive>
+            </router-view> -->
+
