@@ -1,14 +1,20 @@
 <script lang="ts" setup>
 import { computed, ref, toRefs, type Ref } from 'vue';
 import { gql, useMutation, useQuery, useSubscription } from '@urql/vue'
-import { reactiveComputed, refDebounced } from '@vueuse/core';
+import { reactiveComputed, refDebounced, useOnline } from '@vueuse/core';
 import PostSummaryDebounce from './PostSummaryDebounce.vue';
 import FieldChangeTracker from './FieldChangeTracker.vue';
 
 //  component receives the Post IRI as prop
-const props = defineProps<{ iri: string, rmref?: Set<string>, insref?: Set<string> }>()
+const props = defineProps<{
+    iri: string,
+    rmref?: Set<string>,
+        insref?: Set<string>,
+}>()
 
 const { iri, rmref, insref } = toRefs(props)
+
+const isOnline = useOnline()
 
 const isEditing = ref(true)
 
@@ -119,30 +125,17 @@ const updateAuthorTDN = gql`mutation UpdateAuthor($id:ID!,$author:String!) { upd
 const updateAuthorMutation = useMutation(updateAuthorTDN)
 
 
-function deletePost() {
-    deletePostResult.executeMutation({ id: iri.value }).then((result) => {
-        console.log(result)
-    })
-}
-
-const deletePostResult = useMutation(gql`
-    mutation DeletePost ($id: ID!) {
-        deletePost (input: { id: $id, clientMutationId: "urn:blog-vue:a68fc51b" }) {
-            clientMutationId
-        }
-    }
-`)
-
 //  computed style for deleted/inserted or (default) state of resources
 const qcardStyle = computed(() => {
+    let bgrx: string = "background-color: hsl(0, 0%, 25%);"
     if (rmref?.value?.has(iri.value)) {
-        return "background-color: darkred;"
+        bgrx = "background-color: darkred;"
     }
     if (insref?.value?.has(iri.value)) {
-        return "background-color: darkgreen;"
+        bgrx = "background-color: darkgreen;"
     }
 
-    return "background-color: hsl(0, 0%, 25%);"
+    return bgrx
 })
 
 //  computed flag to disable content for deleted resources; eg. disable the 'like' button
@@ -175,7 +168,7 @@ const updatePostAuthor = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
     <div v-if="details">
         <!-- <p>{{ titleRef }}</p> -->
         <q-card class="my-card q-mb-sm" :style="qcardStyle">
-            <q-card-section style="color: hsl(0, 0%, 75%);">
+            <q-card-section>
                 <div class="text-h5 q-mt-sm q-mb-xs">
                     <FieldChangeTracker label="Title" :iri="iri" :og="details.title" :mut="updatePostTitle"/>
                     <FieldChangeTracker label="Author" :iri="iri" :og="details.author" :mut="updatePostAuthor"/>
@@ -191,8 +184,7 @@ const updatePostAuthor = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
                 </div>
             </q-card-section>
             <q-card-actions>
-                <q-btn flat :disable="isDeletedResource" color="secondary" label="Edit" />
-                <q-btn flat :disable="isDeletedResource" color="primary" label="Like" @click="pushChanges(details.stars + 1)" />
+                <q-btn flat :disable="isDeletedResource||(!isOnline)" color="primary" label="Like" @click="pushChanges(details.stars + 1)" />
                 <q-space />
                 <q-btn color="grey" round flat dense :icon="expanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down'"
                 @click="expanded = !expanded" />
@@ -219,9 +211,6 @@ const updatePostAuthor = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
                             {{ details.content }}
                         </div>
                     </q-card-section>
-                    <q-card-actions>
-                        <q-btn flat :disable="isDeletedResource" color="secondary" label="Delete" @click="deletePost" />
-                    </q-card-actions>
                 </div>
             </q-slide-transition>
         </q-card>

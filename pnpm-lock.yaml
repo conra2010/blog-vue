@@ -11,6 +11,9 @@ dependencies:
   '@urql/core':
     specifier: ^4.1.3
     version: 4.1.3(graphql@16.8.1)
+  '@urql/exchange-retry':
+    specifier: ^1.2.0
+    version: 1.2.0(graphql@16.8.1)
   '@urql/vue':
     specifier: ^1.1.2
     version: 1.1.2(graphql@16.8.1)(vue@3.3.4)
@@ -383,6 +386,15 @@ packages:
       graphql: 16.8.1
       wonka: 6.3.4
     dev: true
+
+  /@urql/exchange-retry@1.2.0(graphql@16.8.1):
+    resolution: {integrity: sha512-1O/biKiVhhn0EtvDF4UOvz325K4RrLupfL8rHcmqD2TBLv4qVDWQuzx4JGa1FfqjjRb+C9TNZ6w19f32Mq85Ug==}
+    dependencies:
+      '@urql/core': 4.1.3(graphql@16.8.1)
+      wonka: 6.3.4
+    transitivePeerDependencies:
+      - graphql
+    dev: false
 
   /@urql/vue@1.1.2(graphql@16.8.1)(vue@3.3.4):
     resolution: {integrity: sha512-ixfV0PTXcOl4KrZK24X+9B4rX9KSxqq1xhHZ0SOkAxgxMkomjJhtUl+9PuRL+LEzGWVr91OCEo68VPQ8uc5rBA==}

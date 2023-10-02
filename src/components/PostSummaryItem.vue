@@ -2,13 +2,18 @@
 import { computed, ref, toRefs, type Ref } from 'vue';
 import { gql, useMutation } from '@urql/vue'
 import PostSummary from './PostSummary.vue';
-
+import { useOnline } from '@vueuse/core';
 
 //  component receives the Post IRI as prop
-const props = defineProps<{ iri: string, rmref?: Set<string>, insref?: Set<string> }>()
+const props = defineProps<{
+    iri: string,
+    rmref?: Set<string>,
+    insref?: Set<string>,
+}>()
 
 const { iri, rmref, insref } = toRefs(props)
 
+const isOnline = useOnline()
 
 function deletePost() {
     deletePostResult.executeMutation({ id: iri.value }).then((result) => {
@@ -43,6 +48,7 @@ function onRight({ reset }) {
 </script>
 
 <template>
+    {{ isOnline }}
     <q-slide-item dark @left="onLeft" right-color="red" @right="onRight">
         <template v-slot:left>
             <div class="row items-center">
@@ -55,8 +61,11 @@ function onRight({ reset }) {
                 <!-- <q-icon right name="alarm" /> -->
             </div>
         </template>
-        <q-item>
-            <PostSummary :iri="iri" :rmref="rmref" :insref="insref" />
+        <q-item style="width: 100%;">
+            <PostSummary
+                :iri="iri"
+                :rmref="rmref" :insref="insref"
+                />
         </q-item>
     </q-slide-item>
 </template>

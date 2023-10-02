@@ -5,12 +5,15 @@ import { forwardSubscription } from '@/lib/urql'
 
 import { Client, provideClient, cacheExchange, fetchExchange, subscriptionExchange } from '@urql/vue';
 import { devtoolsExchange } from '@urql/devtools'
-
+import { retryExchange } from '@urql/exchange-retry'
 import { GRAPHQL_ENTRYPOINT } from '@/config/api';
 
-import { useNetwork, useDateFormat } from '@vueuse/core'
+import { watch } from 'vue'
+import { useNetwork, useDateFormat, useOnline } from '@vueuse/core'
 
-const {isOnline} = useNetwork()
+import { useQuasar } from 'quasar'
+
+const isOnline = useOnline()
 
 //  create a urql client to execute GraphQL operations
 const client = new Client({
@@ -18,13 +21,36 @@ const client = new Client({
   exchanges: [
     //  Google Chrome has urql dev tools, uncomment this to send data to them
     //devtoolsExchange,
-    cacheExchange, fetchExchange,
+    cacheExchange,
+    retryExchange({
+      retryIf: error => {
+        if (error.graphQLErrors.length > 0) {
+          console.log('retryExchange GraphQL errors')
+        }
+        if (error.networkError) {
+          console.log('retryExchange Network error')
+        }
+        return true
+      }
+    }),
+    fetchExchange,
     //  see lib/urql.ts
     subscriptionExchange({ forwardSubscription })
   ],
 });
 
 provideClient(client);
+
+const $q = useQuasar()
+
+watch(isOnline, () => {
+  console.log('useOnline : ', isOnline.value)
+  if (isOnline.value) {
+    $q.notify('You are now online')
+  } else {
+    $q.notify({message:'You seem to be offline',type:'warning'})
+  }
+})
 </script>
 
 <template>

@@ -12,8 +12,8 @@ import { toRefs, watch } from 'vue';
 // see [urql subscriptions](https://formidable.com/open-source/urql/docs/advanced/subscriptions/)
 //
 // the urql client will use this to construct an actual 'exchange' when a graphql subscription
-// is executed. this function must return something that conforms to the 'observable spec' with
-// a 'subscribe()' method
+// is executed; given a GraphQL request body, it must return something that conforms to the
+// 'observable spec', an object with a 'subscribe()' method accepting an observer.
 //
 // this implementation is taken from (...); it uses the Wonka library
 //
@@ -71,61 +71,63 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                 abortController !== undefined ? abortController.signal : undefined
         };
 
-        executeFetch(request, operation, fetchOptions).then(result => {
-            if (result !== undefined) {
-                //next(result);
+        executeFetch(request, operation, fetchOptions).then(
+            (result) => {
+                if (result !== undefined) {
+                    //next(result);
 
-                const fieldSelections = getFieldSelections(parse(request.query));
+                    const fieldSelections = getFieldSelections(parse(request.query));
 
-                fieldSelections?.forEach(fieldSelection => {
-                    const selectionName = fieldSelection.name.value;
+                    fieldSelections?.forEach(fieldSelection => {
+                        const selectionName = fieldSelection.name.value;
 
-                    const mercureUrl = result.data[selectionName].mercureUrl;
-                    //console.log('Mercure Subscription recv URL: ', mercureUrl)
+                        const mercureUrl = result.data[selectionName].mercureUrl;
+                        //console.log('Mercure Subscription recv URL: ', mercureUrl)
 
-                    // TODO: automatically add this to the request set, and strip it in result
-                    if (
-                        process.env.NODE_ENV !== 'production' &&
-                        !mercureUrl
-                    ) {
-                        throw new Error(
-                            'Received a subscription response without mercureUrl. This will just return static data.'
-                        );
-                    }
-
-                    // this is a problem now, using the full URL will prevent the PHP API code from publishing updates
-                    // when a mutation is executed that changes the resource; maybe CORS? maybe certs?
-                    //console.log(mercureUrl);
-                    //const mercureSubscription = new EventSource(mercureUrl.replace('https://host.docker.internal:8445', MERCURE_ENTRYPOINT), { withCredentials: false });
-                    //const mercureSubscription = new EventSource(mercureUrl, { withCredentials: false });
-
-                    //  change the URL Caddy sees to the URL the web app needs
-                    const mercure = useMercure(mercureUrl.replace(CADDY_MERCURE_URL, MERCURE_ENTRYPOINT), { withCredentials: false }, {
-                        //  reconfigure timeout on error
-                        retry_baseline: 1000, retry_rng_span: 500
-                    });
-
-                    const { lastEventID, eventType, dataFieldsValues } = toRefs(mercure)
-
-                    watch(lastEventID, () => {
-                        if (eventType.value === 'gqlsubs') {
-                            //  TODO decide/design; use 1st data line for now
-                            if (dataFieldsValues.value && dataFieldsValues.value.length > 0) {
-                                const dvalue = dataFieldsValues.value[0]
-                                result = {
-                                    ...result,
-                                    data: { ...result.data, [selectionName]: { ...result.data[selectionName], ...dvalue}}
-                                }
-
-                                next(result)
-                            }
+                        // TODO: automatically add this to the request set, and strip it in result
+                        if (
+                            process.env.NODE_ENV !== 'production' &&
+                            !mercureUrl
+                        ) {
+                            throw new Error(
+                                'Received a subscription response without mercureUrl. This will just return static data.'
+                            );
                         }
-                    })
 
-                    subscriptions.push(mercure);
-                });
+                        //const mercureSubscription = new EventSource(mercureUrl.replace('https://host.docker.internal:8445', MERCURE_ENTRYPOINT), { withCredentials: false });
+                        //const mercureSubscription = new EventSource(mercureUrl, { withCredentials: false });
+
+                        //  change the URL Caddy sees to the URL the web app needs
+                        const mercure = useMercure(mercureUrl.replace(CADDY_MERCURE_URL, MERCURE_ENTRYPOINT), { withCredentials: false }, {
+                            //  reconfigure timeout on error
+                            retry_baseline: 1000, retry_rng_span: 500
+                        });
+
+                        const { lastEventID, eventType, dataFieldsValues } = toRefs(mercure)
+
+                        watch(lastEventID, () => {
+                            if (eventType.value === 'gqlsubs') {
+                                //  TODO decide/design; use 1st data line for now
+                                if (dataFieldsValues.value && dataFieldsValues.value.length > 0) {
+                                    const dvalue = dataFieldsValues.value[0]
+                                    result = {
+                                        ...result,
+                                        data: { ...result.data, [selectionName]: { ...result.data[selectionName], ...dvalue}}
+                                    }
+
+                                    next(result)
+                                }
+                            }
+                        })
+
+                        subscriptions.push(mercure);
+                    });
+                }
+            },
+            (reason) => {
+                console.error(reason)
             }
-        });
+        );
 
         //  return a 'teardown' function
         return () => {

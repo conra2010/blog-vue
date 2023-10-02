@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, watch, computed, toRefs } from 'vue';
 import { gql, useMutation, useQuery, useSubscription, type TypedDocumentNode } from '@urql/vue'
+import { useOnline } from '@vueuse/core';
 
 const props = defineProps<{ iri: string, label: string, og: string, mut: TypedDocumentNode }>()
 
 const { iri, label, og } = toRefs(props)
+
+const isOnline = useOnline()
 
 const uv = ref(og.value)
 
@@ -89,7 +92,7 @@ const qInputColor = computed(() => {
 <template>
     <div>
         <!-- <q-input filled v-model="uv" :label="label" @focus="handleFocusGained" dark :label-color="qInputColor"/> -->
-        <q-input filled v-model="uv" :label="label" @blur="handleFocusLost" @focus="handleFocusGained" dark :label-color="qInputColor"/>
+        <q-input :disable="!isOnline" filled v-model="uv" :label="label" @blur="handleFocusLost" @focus="handleFocusGained" dark :label-color="qInputColor"/>
         <div v-if="conflict">
             Conflict: {{ og }}
             <q-btn flat secondary label="Cancel" @click="handleCancelEdit" />

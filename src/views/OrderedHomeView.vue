@@ -1,11 +1,14 @@
 <template>
+  {{ isOnline }}
   <div v-if="iris">
     <div class="q-pa-md">
       <q-list bordered separator>
         <q-infinite-scroll @load="onLoadMore" :offset="250">
           <div v-for="(item, index) in infScrollSlice" :key="item" class="caption">
             <!-- <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Rerum repellendus sit voluptate voluptas eveniet porro. Rerum blanditiis perferendis totam, ea at omnis vel numquam exercitationem aut, natus minima, porro labore.</p> -->
-              <PostSummaryItem :iri="item" :rmref="delta.deleted" :insref="delta.inserted"/>
+              <PostSummaryItem
+                :iri="item" :rmref="delta.deleted" :insref="delta.inserted"
+                />
           </div>
           <template v-slot:loading>
             <div class="row justify-center q-my-md">
@@ -25,6 +28,10 @@ import { ref, computed, watch, reactive } from 'vue';
 
 import { useIRIsDelta, useMercureDelta } from '@/lib/delta'
 import { MERCURE_WELL_KNOWN, MERCURE_TOPICS_PREFIX } from '@/config/api';
+
+import { useOnline } from '@vueuse/core';
+
+const isOnline = useOnline()
 
 const queryIndexPostsSort = [{stars: "ASC"}]
 
