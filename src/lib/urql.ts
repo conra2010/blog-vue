@@ -59,6 +59,7 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                 ? context.fetchOptions()
                 : context.fetchOptions || {};
 
+        //  setup request payload 
         const fetchOptions = {
             body: JSON.stringify(request),
             method: 'POST',

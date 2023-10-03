@@ -128,12 +128,12 @@ const updateAuthorMutation = useMutation(updateAuthorTDN)
 //  computed style for deleted/inserted or (default) state of resources
 const qcardStyle = computed(() => {
     let bgrx: string = "background-color: hsl(0, 0%, 25%);"
-    if (rmref?.value?.has(iri.value)) {
-        bgrx = "background-color: darkred;"
-    }
-    if (insref?.value?.has(iri.value)) {
-        bgrx = "background-color: darkgreen;"
-    }
+    // if (rmref?.value?.has(iri.value)) {
+    //     bgrx = "background-color: darkred;"
+    // }
+    // if (insref?.value?.has(iri.value)) {
+    //     bgrx = "background-color: darkgreen;"
+    // }
 
     return bgrx
 })
@@ -162,6 +162,20 @@ const updatePostAuthor = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
     }
 }`
 
+function deletePost() {
+    deletePostResult.executeMutation({ id: iri.value }).then((result) => {
+        console.log(result)
+    })
+}
+
+const deletePostResult = useMutation(gql`
+    mutation DeletePost ($id: ID!) {
+        deletePost (input: { id: $id, clientMutationId: "urn:blog-vue:a68fc51b" }) {
+            clientMutationId
+        }
+    }
+`)
+
 </script>
 
 <template>
@@ -184,6 +198,8 @@ const updatePostAuthor = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
                 </div>
             </q-card-section>
             <q-card-actions>
+                <q-btn flat :disable="isDeletedResource||(!isOnline)" color="primary" label="Delete" @click="deletePost" />
+                
                 <q-btn flat :disable="isDeletedResource||(!isOnline)" color="primary" label="Like" @click="pushChanges(details.stars + 1)" />
                 <q-space />
                 <q-btn color="grey" round flat dense :icon="expanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down'"
