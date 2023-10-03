@@ -30,17 +30,8 @@ const detailsQuery = useQuery({
       post (id: $id) {
         id
         title
-        content
         stars
         author
-        publishedDate
-        updatedDate
-        reference
-        archiveUuid
-        contact
-        archiveEan13
-        signature
-        signedBy
         version
       }
     }
@@ -143,12 +134,6 @@ const isDeletedResource = computed(() => {
     return (rmref?.value?.has(iri.value))
 })
 
-const expanded = ref(false)
-
-function startEditing(field: string) {
-
-}
-
 const updatePostTitle = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
     updatePost (input:{id:$id,clientMutationId:"urn:blog-vue:64a8ff25",title:$fvalue}) {
         clientMutationId
@@ -201,34 +186,8 @@ const deletePostResult = useMutation(gql`
                 <q-btn flat :disable="isDeletedResource||(!isOnline)" color="primary" label="Delete" @click="deletePost" />
                 
                 <q-btn flat :disable="isDeletedResource||(!isOnline)" color="primary" label="Like" @click="pushChanges(details.stars + 1)" />
-                <q-space />
-                <q-btn color="grey" round flat dense :icon="expanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down'"
-                @click="expanded = !expanded" />
+
             </q-card-actions>
-            <q-slide-transition>
-                <div v-show="expanded">
-                    <q-separator />
-                    <q-card-section class="text-subtitle2">
-                        <div class="text-h7">Published on {{ details.publishedDate }}</div>
-                        <div class="text-h7">Updated on {{ details.updatedDate }}</div>
-                        <div class="col-auto text-grey text-caption q-pt-md row no-wrap items-center">
-                            <q-icon name="warning" />{{ iri }}
-                        </div>
-                        <div class="text-h7">See {{ details.reference }}</div>
-                        <div class="text-h7">Archived as {{ details.archiveUuid }}</div>
-                        <div class="text-h7">(barcode) {{ details.archiveEan13 }}</div>
-                        <div class="text-h7">Contact: {{ details.contact }}</div>
-                        <div class="text-h7">Archived as {{ details.archiveUuid }}</div>
-                        <div class="text-h7">(barcode) {{ details.archiveEan13 }}</div>
-                        <div class="text-h7">Contact: {{ details.contact }}</div>
-                    </q-card-section>
-                    <q-card-section class="q-pt-none">
-                        <div class="form-point">
-                            {{ details.content }}
-                        </div>
-                    </q-card-section>
-                </div>
-            </q-slide-transition>
         </q-card>
     </div>
 </template>
