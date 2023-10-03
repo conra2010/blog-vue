@@ -48,18 +48,22 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                 ? new AbortController()
                 : undefined;
 
+        //  setup a request to execute the GraphQL Subscription; this
+        //  will return the Mercure URL that we need to subscribe to
+        //  in order to receive update events
+        //
         const { context } = operation;
 
         const subscriptions: MercureSource[] = [];
 
-        // get the initial request ready. this will return the mercureUrl for
-        // the event source of updates
         const extraOptions =
             typeof context.fetchOptions === 'function'
                 ? context.fetchOptions()
                 : context.fetchOptions || {};
 
-        //  setup request payload 
+        //  setup request payload; this is the same JSON that the GraphQL
+        //  playground sends when executing operations
+        //
         const fetchOptions = {
             body: JSON.stringify(request),
             method: 'POST',
@@ -77,11 +81,16 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                 if (result !== undefined) {
                     //next(result);
 
+                    //  name of the subscription to keep it
+                    //
                     const fieldSelections = getFieldSelections(parse(request.query));
 
                     fieldSelections?.forEach(fieldSelection => {
                         const selectionName = fieldSelection.name.value;
 
+                        //  the Mercure URL that the API Platform tells us
+                        //  to subscribe to
+                        //
                         const mercureUrl = result.data[selectionName].mercureUrl;
                         //console.log('Mercure Subscription recv URL: ', mercureUrl)
 
@@ -98,34 +107,45 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                         //const mercureSubscription = new EventSource(mercureUrl.replace('https://host.docker.internal:8445', MERCURE_ENTRYPOINT), { withCredentials: false });
                         //const mercureSubscription = new EventSource(mercureUrl, { withCredentials: false });
 
+                        //  don't know why the API Platform sends us the URL it uses to access Mercure,
+                        //  because the web app needs a public Mercure entrypoint
+                        //
                         //  change the URL Caddy sees to the URL the web app needs
                         const mercure = useMercure(mercureUrl.replace(CADDY_MERCURE_URL, MERCURE_ENTRYPOINT), { withCredentials: false }, {
                             //  reconfigure timeout on error
                             retry_baseline: 1000, retry_rng_span: 500
                         });
 
+                        //  we are interested on these
                         const { lastEventID, eventType, dataFieldsValues } = toRefs(mercure)
 
                         watch(lastEventID, () => {
+                            //  events of type 'GraphQL Subscription'
                             if (eventType.value === 'gqlsubs') {
+                                //  the spec allows for several lines of data, but we'll use the
+                                //  first one for now
+                                //
                                 //  TODO decide/design; use 1st data line for now
                                 if (dataFieldsValues.value && dataFieldsValues.value.length > 0) {
                                     const dvalue = dataFieldsValues.value[0]
+                                    //  prepare result
                                     result = {
                                         ...result,
                                         data: { ...result.data, [selectionName]: { ...result.data[selectionName], ...dvalue}}
                                     }
-
+                                    //  notify the subscriber that there's another value (?)
                                     next(result)
                                 }
                             }
                         })
 
+                        //  keep the subscription
                         subscriptions.push(mercure);
                     });
                 }
             },
             (reason) => {
+                //  TODO error handling, see what urql expects
                 console.error(reason)
             }
         );
