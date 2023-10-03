@@ -1,13 +1,13 @@
-export const AP_ENTRYPOINT = "https://caddy.ap.orb.local";
+export const AP_ENTRYPOINT = "https://caddy.api-platform.orb.local";
 
-export const MERCURE_ENTRYPOINT = 'https://shodan.local:8443';
+export const MERCURE_ENTRYPOINT = 'https://caddy.api-platform.orb.local';
 
 
 export const GRAPHQL_ENTRYPOINT = AP_ENTRYPOINT + '/graphql';
 
 export const MERCURE_WELL_KNOWN = MERCURE_ENTRYPOINT + '/.well-known/mercure';
 
-export const MERCURE_TOPICS_PREFIX = "https://caddy.ap.orb.local";
+export const MERCURE_TOPICS_PREFIX = "https://caddy.api-platform.orb.local";
 
 //  the URL that Caddy uses to contact Mercure
-export const CADDY_MERCURE_URL = "https://host.docker.internal:8445";
+export const CADDY_MERCURE_URL = "http://caddy";
