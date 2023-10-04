@@ -15,6 +15,7 @@ const eventIDsHistory: Ref<string[]> = ref([])
 watch(lastEventID, () => {
     if (verbose.value) {
         console.log(lastEventID.value)
+        console.log(eventType.value)
         console.log(JSON.stringify(dataFieldsValues.value))
     }
     if (eventIDsHistory.value.unshift(lastEventID.value) > 64) {
