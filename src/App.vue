@@ -2,10 +2,11 @@
 import { RouterView } from 'vue-router'
 
 import { forwardSubscription } from '@/lib/urql'
+import { retryExchange, logExchange, cacheExchange } from '@/lib/adv'
 
-import { Client, provideClient, cacheExchange, fetchExchange, subscriptionExchange } from '@urql/vue';
+import { Client, provideClient, fetchExchange, subscriptionExchange } from '@urql/vue';
 import { devtoolsExchange } from '@urql/devtools'
-import { retryExchange } from '@urql/exchange-retry'
+
 import { GRAPHQL_ENTRYPOINT } from '@/config/api';
 
 import { watch } from 'vue'
@@ -15,13 +16,31 @@ import { useQuasar } from 'quasar'
 
 const isOnline = useOnline()
 
+async function fetchWithTimeout(
+  url: RequestInfo | URL,
+  opts: RequestInit | undefined,
+) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 3000)
+
+  const response = await fetch(url, {
+    ...opts,
+    signal: controller.signal,
+  })
+
+  clearInterval(timeout)
+  return response
+}
+
 //  create a urql client to execute GraphQL operations
 const client = new Client({
   url: GRAPHQL_ENTRYPOINT,
   exchanges: [
     //  Google Chrome has urql dev tools, uncomment this to send data to them
-    //devtoolsExchange,
+    logExchange('urn:ex:front'),
+    devtoolsExchange,
     cacheExchange,
+    logExchange('urn:ex:retry'),
     retryExchange({
       retryIf: error => {
         if (error.graphQLErrors.length > 0) {
@@ -37,6 +56,7 @@ const client = new Client({
     //  see lib/urql.ts
     subscriptionExchange({ forwardSubscription })
   ],
+  fetch: fetchWithTimeout
 });
 
 provideClient(client);

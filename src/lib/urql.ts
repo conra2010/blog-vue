@@ -1,9 +1,9 @@
 
-import type { Operation, SubscriptionForwarder, SubscriptionOperation } from '@urql/core'
+import { mapExchange, type Operation, type SubscriptionForwarder, type SubscriptionOperation } from '@urql/core'
 import { make, toObservable } from 'wonka';
 import { Kind, parse } from 'graphql'
 import type { DocumentNode, FieldNode, OperationDefinitionNode } from 'graphql';
-import type { OperationResult } from '@urql/core';
+import type { Exchange, OperationResult } from '@urql/core';
 
 import { useMercure, type MercureSource } from '@/lib/sse'
 import { CADDY_MERCURE_URL, MERCURE_ENTRYPOINT } from '@/config/api';
@@ -138,8 +138,7 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                                 }
                             }
                         })
-
-                        //  keep the subscription
+                        //  keep the subscription here
                         subscriptions.push(mercure);
                     });
                 }
