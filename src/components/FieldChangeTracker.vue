@@ -3,20 +3,27 @@ import { ref, watch, computed, toRefs } from 'vue';
 import { gql, useMutation, useQuery, useSubscription, type TypedDocumentNode } from '@urql/vue'
 import { useOnline } from '@vueuse/core';
 
+//  we get the ID of the resource, a label and value, and a GraphQL mutation to
+//  change the field
+//
 const props = defineProps<{ iri: string, label: string, og: string, mut: TypedDocumentNode }>()
 
 const { iri, label, og } = toRefs(props)
 
 const isOnline = useOnline()
 
+//  copy original value to another ref, model for the input 
 const uv = ref(og.value)
 
 const conflict = ref(false)
 
+//  if the original value changes
 watch(og, () => {
+    //  and we are not editing, just copy the new value
     if (!isEditing.value) {
         uv.value = og.value
     } else {
+        //  if values are different, there's a conflict
         if (uv.value !== og.value) {
             conflict.value = true
         }
@@ -25,6 +32,7 @@ watch(og, () => {
 
 const isEditing = ref(false)
 
+//  TODO find a way to pass GraphQL mutations around
 const updateFieldMutation = useMutation(props.mut)
 
 function executeUpdateFieldMutation() {
@@ -57,15 +65,19 @@ function handleFocusGained() {
 }
 
 function handleFocusLost() {
+    //  if we have a new value in the input
     if (uv.value !== og.value) {
+        //  use the GraphQL mutation to send it to the API
         console.log('update:', og.value, ' => ', uv.value);
         //executeUpdatePost()
         executeUpdateFieldMutation()
     }
+    //  back to ...
     isEditing.value = false
     conflict.value = false
 }
 
+//  TODO handle conflicts, etc.
 function handleAcceptTruth() {
     uv.value = og.value
     conflict.value = false
