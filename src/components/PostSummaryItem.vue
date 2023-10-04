@@ -1,11 +1,10 @@
 <script lang="ts" setup>
-import { computed, ref, toRefs, type Ref,
+import { toRefs, type Ref,
     onBeforeMount, onBeforeUpdate,
     onMounted,
     onBeforeUnmount, onUnmounted } from 'vue';
-import { gql, useMutation } from '@urql/vue'
+
 import PostSummary from './PostSummary.vue';
-import { useOnline, tryOnBeforeUnmount } from '@vueuse/core';
 
 //  component receives the Post IRI as prop
 const props = defineProps<{
@@ -15,8 +14,6 @@ const props = defineProps<{
 }>()
 
 const { iri, rmref, insref } = toRefs(props)
-
-const isOnline = useOnline()
 
 onBeforeMount(() => {
     console.log('on before mount')

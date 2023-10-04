@@ -55,6 +55,15 @@ export interface UseMercureConfiguration {
   retry_rng_span?: number;
 }
 
+/**
+ * Listen to Mercure events
+ *
+ * @param   {string}                   url            to reach Mercure
+ * @param   {UseEventSourceOptions}    options        ???
+ * @param   {UseMercureConfiguration}  configuration  timeouts for reconnecting
+ *
+ * @return  {MercureSource}                           [return description]
+ */
 export function useMercure(url: string, options: UseEventSourceOptions = {}, configuration?: UseMercureConfiguration): MercureSource {
   //  data about the event received
   const lastEventID: Ref<string> = ref('')
@@ -71,23 +80,24 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     return null
   })
 
-  //  status and event sourc
+  //  status and event source
   const status: Ref<string> = ref('CLOSED')
 
   const eventSource: Ref<EventSource | null> = ref(null)
 
-  //  urn
+  //  urn for logging
   const urn: string = uuidv4()
 
-  //  GraphQL 
+  //  GraphQL subscription urn if available, for logging
   const gqlSubscriptionID: Ref<string> = ref('')
 
   //  error
   const error: Ref<Event|null> = ref(null)
 
+  //  keep the last known ID to tell Mercure when reconnecting
   const lastEventIDOnError: Ref<string> = ref('')
 
-  //  configuration
+  //  configuration, timeouts to reconnect
   const _retry_baseline: number = (configuration?.retry_baseline ?? 6000)
   const _retry_rng_span: number = (configuration?.retry_rng_span ?? 3000)
 
@@ -100,6 +110,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   //  network status
   const { isOnline, onlineAt, offlineAt } = useNetwork()
 
+  //  use network status changes to close/reconnect event source
   watchDebounced(isOnline, () => {
     if (!isOnline.value) {
       //  went offline
@@ -142,7 +153,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     return rx
   }
 
-  //  shared for all event types
+  //  shared parsing for all event types
   function pre(e: MessageEvent<any>) {
     //  ?????
     eventType.value = e.type
@@ -197,7 +208,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     }, timeout);
   }
 
-  //  setup event source listeners
+  //  setup event source listeners when the source changes
   watch(eventSource, () => {
     if (eventSource.value) {
       //  management

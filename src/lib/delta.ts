@@ -2,9 +2,18 @@ import { watch, ref, shallowRef, type Ref, computed, reactive, toRefs } from 'vu
 import { type UseEventSourceOptions, tryOnScopeDispose } from '@vueuse/core';
 import { useMercure, type UseMercureConfiguration } from './sse';
 
+/**
+ * Keeps sets of inserted and deleted IDs up to date using the Mercure events
+ *
+ * @param   {string}                   baseurl        where to reach Mercure
+ * @param   {UseEventSourceOptions}    options        ???
+ * @param   {UseMercureConfiguration}  configuration  timeout params to reconnect
+ *
+ * @return  {[type]}                                  sets of IDs and event info
+ */
 export const useMercureDelta = (baseurl: string, options: UseEventSourceOptions = {}, configuration?: UseMercureConfiguration) => {
 
-    //  info we want
+    //  info we want to keep about IDs
     const inserted = reactive(new Set<string>())
 
     const deleted = reactive(new Set<string>())

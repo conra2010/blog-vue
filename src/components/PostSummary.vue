@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import { computed, ref, toRefs, type Ref } from 'vue';
 import { gql, useMutation, useQuery, useSubscription } from '@urql/vue'
-import { reactiveComputed, refDebounced, useOnline } from '@vueuse/core';
-import PostSummaryDebounce from './PostSummaryDebounce.vue';
+import { useOnline } from '@vueuse/core';
+
 import FieldChangeTracker from './FieldChangeTracker.vue';
 
 //  component receives the Post IRI as prop
@@ -15,13 +15,6 @@ const props = defineProps<{
 const { iri, rmref, insref } = toRefs(props)
 
 const isOnline = useOnline()
-
-const isEditing = ref(true)
-
-interface FieldChangeTracking<T> {
-    og: Ref<T>;
-    uv: Ref<T>;
-}
 
 //  graphql query for details 
 const detailsQuery = useQuery({

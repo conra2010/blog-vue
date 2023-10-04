@@ -1,5 +1,4 @@
 <template>
-  {{ isOnline }}
   <div v-if="iris">
     <q-virtual-scroll
       virtualScrollSliceSize="10"
@@ -23,10 +22,6 @@ import { ref, computed, watch, reactive } from 'vue';
 import { useIRIsDelta, useMercureDelta } from '@/lib/delta'
 import { MERCURE_WELL_KNOWN, MERCURE_TOPICS_PREFIX } from '@/config/api';
 
-import { useOnline } from '@vueuse/core';
-
-const isOnline = useOnline()
-
 const queryIndexPostsSort = [{id: "ASC"}]
 
 //  a graphql query to get the IRIs of posts
@@ -48,22 +43,6 @@ const iris = computed(() => {
 
   return rx
 })
-
-//  currently shown IRIs up to this array index
-const infScrollMark = ref(25)
-
-const infScrollSlice = computed(() => { return iris.value.slice(0, infScrollMark.value) })
-
-function onLoadMore(index, done) {
-  setTimeout(() => {
-    console.log('loading more for slice : [0, ', infScrollMark.value, ']')
-    if (infScrollMark.value < iris.value.length) {
-      infScrollMark.value = Math.min(iris.value.length, infScrollMark.value + 10)
-      console.log('inf slice new length : [0, ', infScrollMark.value, ']')
-    }
-    done()
-  }, 2000)
-}
 
 //  exec graphql query again but force network access
 //
