@@ -4,13 +4,19 @@ import { useMercure, type MercureSource } from '@/lib/sse'
 
 const props = defineProps<{ source: MercureSource }>()
 
-const { lastEventID, eventType, status, error, lastEventIDOnError } = toRefs(props.source)
+const { lastEventID, eventType, status, error, lastEventIDOnError, dataFieldsValues } = toRefs(props.source)
+
+const verbose = ref(true)
 
 const expanded = ref(false)
 
 const eventIDsHistory: Ref<string[]> = ref([])
 
 watch(lastEventID, () => {
+    if (verbose.value) {
+        console.log(lastEventID.value)
+        console.log(JSON.stringify(dataFieldsValues.value))
+    }
     if (eventIDsHistory.value.unshift(lastEventID.value) > 64) {
         eventIDsHistory.value.pop()
     }
@@ -34,6 +40,7 @@ const errorstr = computed(() => {
             <p>lastEventID on error: {{ lastEventIDOnError }}</p>
         </q-card-section>
         <q-card-actions>
+            <q-checkbox v-model="verbose" label="console.log" />
             <q-btn color="grey" round flat dense :icon="expanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down'"
                 @click="expanded = !expanded" />
         </q-card-actions>
