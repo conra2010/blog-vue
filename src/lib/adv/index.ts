@@ -1,6 +1,8 @@
 export { retryExchange } from './retryExchange';
 export type { RetryExchangeOptions } from './retryExchange';
 
-export { logExchange } from './logExchange';
+export { logExchange, logOpsExchange, otherExchange } from './logExchange';
 
 export { cacheExchange } from './cacheExchange';
+
+export { fetchExchange } from './fetchExchange';

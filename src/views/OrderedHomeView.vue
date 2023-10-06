@@ -24,6 +24,9 @@ import { useIRIsDelta, useMercureDelta } from '@/lib/delta'
 import { MERCURE_WELL_KNOWN, MERCURE_TOPICS_PREFIX } from '@/config/api';
 
 import { useOnline } from '@vueuse/core';
+import { useQuasar } from 'quasar';
+
+const $q = useQuasar()
 
 const isOnline = useOnline()
 
@@ -38,6 +41,10 @@ const queryIndexPostsResponse = useQuery({
       }
     }
   `, variables: { order: queryIndexPostsSort }
+})
+
+watch(queryIndexPostsResponse.error, () => {
+  $q.notify({message:'Error : GraphQL : urn:5c6a79f2',type:'error'})
 })
 
 //  easy access to retrieved IRIs as an array

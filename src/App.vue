@@ -2,9 +2,9 @@
 import { RouterView } from 'vue-router'
 
 import { forwardSubscription } from '@/lib/urql'
-import { retryExchange, logExchange, cacheExchange } from '@/lib/adv'
+import { fetchExchange, logOpsExchange, retryExchange, logExchange, otherExchange, cacheExchange } from '@/lib/adv'
 
-import { Client, provideClient, fetchExchange, subscriptionExchange } from '@urql/vue';
+import { Client, provideClient, subscriptionExchange } from '@urql/vue';
 import { devtoolsExchange } from '@urql/devtools'
 
 import { GRAPHQL_ENTRYPOINT } from '@/config/api';
@@ -19,6 +19,7 @@ const isOnline = useOnline()
 async function fetchWithTimeout(
   url: RequestInfo | URL,
   opts: RequestInit | undefined,
+  cfg: number
 ) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 3000)
@@ -37,10 +38,11 @@ const client = new Client({
   url: GRAPHQL_ENTRYPOINT,
   exchanges: [
     //  Google Chrome has urql dev tools, uncomment this to send data to them
-    logExchange('urn:ex:front'),
+    //logOpsExchange,
+    //otherExchange('foo bar'),
     devtoolsExchange,
     cacheExchange,
-    logExchange('urn:ex:retry'),
+    //logExchange('urn:ex:retry'),
     retryExchange({
       retryIf: error => {
         if (error.graphQLErrors.length > 0) {
@@ -56,7 +58,7 @@ const client = new Client({
     //  see lib/urql.ts
     subscriptionExchange({ forwardSubscription })
   ],
-  fetch: fetchWithTimeout
+  fetch: (url,opts) => fetchWithTimeout(url,opts,5000)
 });
 
 provideClient(client);

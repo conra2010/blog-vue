@@ -1,9 +1,11 @@
 <script lang="ts" setup>
-import { computed, ref, toRefs, type Ref } from 'vue';
+import { computed, ref, watch, toRefs, type Ref } from 'vue';
 import { gql, useMutation, useQuery, useSubscription } from '@urql/vue'
 import { reactiveComputed, refDebounced, useOnline } from '@vueuse/core';
 import PostSummaryDebounce from './PostSummaryDebounce.vue';
 import FieldChangeTracker from './FieldChangeTracker.vue';
+import { useQuasar } from 'quasar';
+import QCardInlineNotification from './QCardInlineNotification.vue';
 
 //  component receives the Post IRI as prop
 const props = defineProps<{
@@ -13,6 +15,8 @@ const props = defineProps<{
 }>()
 
 const { iri, rmref, insref } = toRefs(props)
+
+const $q = useQuasar()
 
 const isOnline = useOnline()
 
@@ -37,6 +41,10 @@ const detailsQuery = useQuery({
     }
   `,
     variables: { id: iri }
+})
+
+watch(detailsQuery.error, () => {
+  $q.notify({message:'Error : GraphQL : urn:5c6b64f2',type:'error'})
 })
 
 //  convenient access to post details
@@ -190,6 +198,9 @@ const deletePostResult = useMutation(gql`
             </q-card-actions>
         </q-card>
     </div>
+    <!-- <div v-if="detailsQuery.error">
+        <QCardInlineNotification :error="detailsQuery.error" />
+    </div> -->
 </template>
 
 <style>

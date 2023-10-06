@@ -1,5 +1,5 @@
 
-import { mapExchange, type Operation, type SubscriptionForwarder, type SubscriptionOperation } from '@urql/core'
+import { makeErrorResult, mapExchange, type Operation, type SubscriptionForwarder, type SubscriptionOperation } from '@urql/core'
 import { make, toObservable } from 'wonka';
 import { Kind, parse } from 'graphql'
 import type { DocumentNode, FieldNode, OperationDefinitionNode } from 'graphql';
@@ -42,6 +42,8 @@ const getFieldSelections = (query: DocumentNode): readonly FieldNode[] | null =>
 };
 
 const createFetchSource = (request: SubscriptionOperation, operation: Operation) => {
+    //  ObservableLike<T> provides subscribe(observer:ObserverLike)
+    //      OberverLike<T> with result, error and completion callbacks
     return make<OperationResult>(({ next, complete }) => {
         const abortController =
             typeof AbortController !== 'undefined'
@@ -79,6 +81,10 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
         executeFetch(request, operation, fetchOptions).then(
             (result) => {
                 if (result !== undefined) {
+                    //  TODO might be error, following code won't work
+                    //  
+                    //  result: {errors: Array(n) = [TypeError: Failed to ..., ...]}
+
                     //next(result);
 
                     //  name of the subscription to keep it
@@ -117,7 +123,7 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                         });
 
                         //  we are interested on these
-                        const { lastEventID, eventType, dataFieldsValues } = toRefs(mercure)
+                        const { lastEventID, eventType, dataFieldsValues, error } = toRefs(mercure)
 
                         watch(lastEventID, () => {
                             //  events of type 'GraphQL Subscription'
@@ -138,6 +144,11 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                                 }
                             }
                         })
+
+                        watch(error, () => {
+                            console.log(error)
+                        })
+                        
                         //  keep the subscription here
                         subscriptions.push(mercure);
                     });
@@ -145,6 +156,7 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
             },
             (reason) => {
                 //  TODO error handling, see what urql expects
+                next(makeErrorResult(operation, reason))
                 console.error(reason)
             }
         );
