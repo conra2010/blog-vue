@@ -93,7 +93,7 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                         })
                         complete()
 
-                        console.log(result.errors)
+                        return
                     }
                     //next(result);
 
@@ -158,7 +158,11 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                         })
 
                         watch(error, () => {
-                            console.log(error)
+                            next({
+                                data: null,
+                                errors: [new Error('Mercure event stream error')],
+                                hasNext: true
+                            })
                         })
                         
                         //  keep the subscription here

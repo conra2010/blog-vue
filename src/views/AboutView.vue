@@ -13,7 +13,10 @@
 <script setup lang="ts">
 import PostSummary from '@/components/PostSummary.vue';
 import { gql, useQuery } from '@urql/vue';
+import { useQuasar } from 'quasar';
 import { ref, computed, watch } from 'vue';
+
+const $q = useQuasar()
 
 //  a graphql query to get the IRIs of all posts (pagination disabled in AP resource class)
 const queryIndexPostsResponse = useQuery({
@@ -24,6 +27,10 @@ const queryIndexPostsResponse = useQuery({
       }
     }
   `
+})
+
+watch(queryIndexPostsResponse.error, () => {
+  $q.notify({message:'Error : GraphQL : urn:5c6a79f2',type:'error'})
 })
 
 //  easy access to retrieved IRIs as an array

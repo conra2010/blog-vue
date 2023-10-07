@@ -39,6 +39,11 @@ const client = new Client({
   exchanges: [
     //  Google Chrome has urql dev tools, uncomment this to send data to them
     logExchange('urn:head'),
+    mapExchange({
+      onError(error, operation) {
+        console.log(`Operation with ${operation.key} failed: `, error)
+      }
+    }),
     //otherExchange('foo bar'),
     devtoolsExchange,
     cacheExchange,
@@ -55,11 +60,6 @@ const client = new Client({
     //   }
     // }),
     fetchExchange,
-    mapExchange({
-      onError(error, operation) {
-        console.log(`Operation with ${operation.key} failed: `, error)
-      }
-    }),
     //  see lib/urql.ts
     subscriptionExchange({ forwardSubscription })
   ],

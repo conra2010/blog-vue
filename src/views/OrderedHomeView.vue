@@ -95,4 +95,8 @@ watch(delta.lastEventID, () => {
   }
 })
 
+watch(delta.error, () => {
+  console.log(`Mercure Delta IRIs error: `, delta.error.value)
+})
+
 </script>
