@@ -53,6 +53,8 @@ export interface UseMercureConfiguration {
    */
   retry_baseline?: number;
   retry_rng_span?: number;
+
+  retry_max_ntries?: number;
 }
 
 export function useMercure(url: string, options: UseEventSourceOptions = {}, configuration?: UseMercureConfiguration): MercureSource {
@@ -90,9 +92,12 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   //  configuration
   const _retry_baseline: number = (configuration?.retry_baseline ?? 6000)
   const _retry_rng_span: number = (configuration?.retry_rng_span ?? 3000)
+  const _retry_max_ntries: number = (configuration?.retry_max_ntries ?? 3)
 
   //  reconnect with lastEventID
   let _timer: number;
+
+  let _ntries: number = 0;
 
   //  debugging
   let _lastErrorTimeStamp: number;
@@ -186,15 +191,21 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
 
     close()
 
-    // reconnect after random timeout
-    const timeout = Math.round(_retry_baseline + _retry_rng_span * Math.random());
+    if (_ntries < _retry_max_ntries) {
+      // reconnect after random timeout
+      const timeout = Math.round(_retry_baseline + _retry_rng_span * Math.random());
+      
+      _timer = setTimeout(() => {
+        console.log(logid.value, 'Will attempt to reconnect for lastEventID ', (lastEventID.value !== '' ? lastEventID.value : '(undefined)'))
         
-    _timer = setTimeout(() => {
-      console.log(logid.value, 'Will attempt to reconnect for lastEventID ', (lastEventID.value !== '' ? lastEventID.value : '(undefined)'))
+        _ntries++
 
-      //  a new event source
-      eventSource.value = new EventSource(reconnectURL(), { withCredentials })
-    }, timeout);
+        //  a new event source
+        eventSource.value = new EventSource(reconnectURL(), { withCredentials })
+      }, timeout);
+    } else {
+      console.log(logid.value, 'Max retries reached with lastEventID ', (lastEventID.value !== '' ? lastEventID.value : '(undefined)'))
+    }
   }
 
   //  setup event source listeners
@@ -207,6 +218,9 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
 
         //  reference value
         _lastErrorTimeStamp = performance.now()
+
+        //  reset retry count
+        _ntries = 0;
       }
       //  reconnect on error
       eventSource.value.onerror = (e) => {
