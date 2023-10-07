@@ -88,7 +88,9 @@ const fastTrackingFieldsSubscription = useSubscription({
   `, variables: { iriv: iri },
 }, handleSubscription)
 
-
+watch(fastTrackingFieldsSubscription.error, () => {
+    console.log('fts error ref: ', fastTrackingFieldsSubscription.error)
+})
 
 //  exec graphql mutation to 'give a like' to this resource
 function pushChanges(count: number) {

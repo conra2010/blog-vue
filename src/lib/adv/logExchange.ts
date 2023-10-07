@@ -63,7 +63,7 @@ export const logOpsExchange = ({ client, forward }) => {
         const pre$ = pipe(
             ops$,
             map(operation => {
-                console.log('exchange:query ', JSON.stringify(operation))
+                console.log('PRE  ', JSON.stringify(operation))
                 return operation
             })
         )
@@ -72,7 +72,7 @@ export const logOpsExchange = ({ client, forward }) => {
 
         const post$ = pipe(rx$,
             map(result => {
-                console.log('exchange:rx ', JSON.stringify(result))
+                console.log('POST ', JSON.stringify(result))
                 return result
             })
         )
@@ -84,7 +84,7 @@ export const logOpsExchange = ({ client, forward }) => {
 export const logExchange = (urn: string) => {
     return mapExchange({
         onOperation(op) {
-            //console.log(urn, ' OP ', op)
+            console.log('OP ', urn, '/', op.key, ' >> ', op)
 
             // const ax = fromArray([1,2,3])
             // const bx = fromArray([4,5,6])
@@ -95,7 +95,7 @@ export const logExchange = (urn: string) => {
             // )
         },
         onResult(rx) {
-            //console.log(urn, ' RX ', rx)
+            console.log('RX ', urn, '/', rx.operation.key, ' << ', rx)
         }
     });
 }

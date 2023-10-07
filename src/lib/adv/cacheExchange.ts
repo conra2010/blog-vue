@@ -129,10 +129,10 @@ export const cacheExchange: Exchange = ({ forward, client, dispatchDebug }) => {
       filter(
         op => op.kind !== 'query' || op.context.requestPolicy !== 'cache-only'
       ),
-      filter((value) => {
-        console.log('cache forwarded (..., forward ', value)
-        return true
-      }),
+      // filter((value) => {
+      //   console.log('cache forwarded (..., forward ', value)
+      //   return true
+      // }),
       forward,
       tap(response => {
         let { operation } = response;

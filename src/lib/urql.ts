@@ -1,6 +1,6 @@
 
-import { makeErrorResult, mapExchange, type Operation, type SubscriptionForwarder, type SubscriptionOperation } from '@urql/core'
-import { make, toObservable } from 'wonka';
+import { makeErrorResult, makeResult, mapExchange, type Operation, type SubscriptionForwarder, type SubscriptionOperation } from '@urql/core'
+import { make, onPush, pipe, toObservable } from 'wonka';
 import { Kind, parse } from 'graphql'
 import type { DocumentNode, FieldNode, OperationDefinitionNode } from 'graphql';
 import type { Exchange, OperationResult } from '@urql/core';
@@ -8,6 +8,7 @@ import type { Exchange, OperationResult } from '@urql/core';
 import { useMercure, type MercureSource } from '@/lib/sse'
 import { CADDY_MERCURE_URL, MERCURE_ENTRYPOINT } from '@/config/api';
 import { toRefs, watch } from 'vue';
+import { makeFetchSource } from '@urql/core/internal';
 
 // see [urql subscriptions](https://formidable.com/open-source/urql/docs/advanced/subscriptions/)
 //
@@ -84,7 +85,11 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                     //  TODO might be error, following code won't work
                     //  
                     //  result: {errors: Array(n) = [TypeError: Failed to ..., ...]}
-
+                    if (result.errors?.length > 0) {
+                        result.errors.map(ex => { next(makeErrorResult(operation, ex))})
+                        //next(makeErrorResult(operation, result.errors))
+                        console.log(result.errors)
+                    }
                     //next(result);
 
                     //  name of the subscription to keep it
@@ -101,13 +106,11 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                         //console.log('Mercure Subscription recv URL: ', mercureUrl)
 
                         // TODO: automatically add this to the request set, and strip it in result
-                        if (
-                            process.env.NODE_ENV !== 'production' &&
-                            !mercureUrl
-                        ) {
-                            throw new Error(
-                                'Received a subscription response without mercureUrl. This will just return static data.'
-                            );
+                        if (process.env.NODE_ENV !== 'production' && !mercureUrl) {
+                            next({ errors: [new Error('missing mercureUrl in GraphQL Subscription response')], hasNext: false })
+                            complete()
+
+                            return
                         }
 
                         //const mercureSubscription = new EventSource(mercureUrl.replace('https://host.docker.internal:8445', MERCURE_ENTRYPOINT), { withCredentials: false });

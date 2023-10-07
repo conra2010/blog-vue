@@ -125,10 +125,10 @@ export const retryExchange = (options: RetryExchangeOptions): Exchange => {
 
       const retryWithBackoff$ = pipe(
         retry$,
-        filter((value) => {
-          console.log('retryWithBackoff(pipe(retry$...', value)
-          return true
-        }),
+        // filter((value) => {
+        //   console.log('retryWithBackoff(pipe(retry$...', value)
+        //   return true
+        // }),
         //  map values for outer source to an inner source
         mergeMap((operation: Operation) => {
           const retry: RetryState = operation.context.retry || {
@@ -185,15 +185,15 @@ export const retryExchange = (options: RetryExchangeOptions): Exchange => {
 
       return pipe(
         merge([operations$, retryWithBackoff$]),
-        filter((value) => {
-          console.log('pipe(merge(ops$,retryWithBackoff$)...', value)
-          return true
-        }),
+        // filter((value) => {
+        //   console.log('pipe(merge(ops$,retryWithBackoff$)...', value)
+        //   return true
+        // }),
         forward,
-        filter((value) => {
-          console.log('pipe(merge(ops$,retryWithBackoff$),forward,...', value)
-          return true
-        }),
+        // filter((value) => {
+        //   console.log('pipe(merge(ops$,retryWithBackoff$),forward,...', value)
+        //   return true
+        // }),
         filter(res => {
           const retry = res.operation.context.retry as RetryState | undefined;
           // Only retry if the error passes the conditional retryIf function (if passed)
@@ -235,10 +235,10 @@ export const retryExchange = (options: RetryExchangeOptions): Exchange => {
 
           return true;
         }),
-        filter((value) => {
-          console.log('pipe(..., filter, ...', value)
-          return true
-        }),
+        // filter((value) => {
+        //   console.log('pipe(..., filter, ...', value)
+        //   return true
+        // }),
       );
     };
 };

@@ -38,7 +38,7 @@ const client = new Client({
   url: GRAPHQL_ENTRYPOINT,
   exchanges: [
     //  Google Chrome has urql dev tools, uncomment this to send data to them
-    //logOpsExchange,
+    logExchange('urn:head'),
     //otherExchange('foo bar'),
     devtoolsExchange,
     cacheExchange,
