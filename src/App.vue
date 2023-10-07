@@ -4,7 +4,7 @@ import { RouterView } from 'vue-router'
 import { forwardSubscription } from '@/lib/urql'
 import { fetchExchange, logOpsExchange, retryExchange, logExchange, otherExchange, cacheExchange } from '@/lib/adv'
 
-import { Client, provideClient, subscriptionExchange } from '@urql/vue';
+import { Client, mapExchange, provideClient, subscriptionExchange } from '@urql/vue';
 import { devtoolsExchange } from '@urql/devtools'
 
 import { GRAPHQL_ENTRYPOINT } from '@/config/api';
@@ -43,18 +43,23 @@ const client = new Client({
     devtoolsExchange,
     cacheExchange,
     //logExchange('urn:ex:retry'),
-    retryExchange({
-      retryIf: error => {
-        if (error.graphQLErrors.length > 0) {
-          console.log('retryExchange GraphQL errors')
-        }
-        if (error.networkError) {
-          console.log('retryExchange Network error')
-        }
-        return true
+    // retryExchange({
+    //   retryIf: error => {
+    //     if (error.graphQLErrors.length > 0) {
+    //       console.log('retryExchange GraphQL errors')
+    //     }
+    //     if (error.networkError) {
+    //       console.log('retryExchange Network error')
+    //     }
+    //     return true
+    //   }
+    // }),
+    fetchExchange,
+    mapExchange({
+      onError(error, operation) {
+        console.log(`Operation with ${operation.key} failed: `, error)
       }
     }),
-    fetchExchange,
     //  see lib/urql.ts
     subscriptionExchange({ forwardSubscription })
   ],

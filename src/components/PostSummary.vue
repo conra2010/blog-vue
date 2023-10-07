@@ -58,12 +58,13 @@ const details = computed(() => {
 //  graphql subscription optional handler function to process received data
 const handleSubscription = (messages = [], response) => {
     //  TODO
-
+    if (response) {
         detailsQuery.data.value.post.stars = response.updatePostSubscribe.post.stars
         detailsQuery.data.value.post.author = response.updatePostSubscribe.post.author
         detailsQuery.data.value.post.title = response.updatePostSubscribe.post.title
-
-    return [response.updatePostSubscribe.post, ...messages]
+        return [response.updatePostSubscribe.post, ...messages]
+    }
+    return messages
 }
 
 //  subscription, we only care about the 'stars' field
@@ -90,6 +91,7 @@ const fastTrackingFieldsSubscription = useSubscription({
 
 watch(fastTrackingFieldsSubscription.error, () => {
     console.log('fts error ref: ', fastTrackingFieldsSubscription.error)
+    $q.notify({message:'Error : GraphQL : urn:a835c5d6',type:'error'})
 })
 
 //  exec graphql mutation to 'give a like' to this resource

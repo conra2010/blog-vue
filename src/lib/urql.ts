@@ -1,9 +1,9 @@
 
 import { makeErrorResult, makeResult, mapExchange, type Operation, type SubscriptionForwarder, type SubscriptionOperation } from '@urql/core'
-import { make, onPush, pipe, toObservable } from 'wonka';
+import { make, onPush, pipe, toObservable, type Source } from 'wonka';
 import { Kind, parse } from 'graphql'
 import type { DocumentNode, FieldNode, OperationDefinitionNode } from 'graphql';
-import type { Exchange, OperationResult } from '@urql/core';
+import type { Exchange, ExecutionResult, OperationResult } from '@urql/core';
 
 import { useMercure, type MercureSource } from '@/lib/sse'
 import { CADDY_MERCURE_URL, MERCURE_ENTRYPOINT } from '@/config/api';
@@ -42,10 +42,10 @@ const getFieldSelections = (query: DocumentNode): readonly FieldNode[] | null =>
     ) : null;
 };
 
-const createFetchSource = (request: SubscriptionOperation, operation: Operation) => {
+const createFetchSource = (request: SubscriptionOperation, operation: Operation): Source<ExecutionResult> => {
     //  ObservableLike<T> provides subscribe(observer:ObserverLike)
     //      OberverLike<T> with result, error and completion callbacks
-    return make<OperationResult>(({ next, complete }) => {
+    return make<ExecutionResult>(({ next, complete }) => {
         const abortController =
             typeof AbortController !== 'undefined'
                 ? new AbortController()
@@ -86,8 +86,13 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                     //  
                     //  result: {errors: Array(n) = [TypeError: Failed to ..., ...]}
                     if (result.errors?.length > 0) {
-                        result.errors.map(ex => { next(makeErrorResult(operation, ex))})
-                        //next(makeErrorResult(operation, result.errors))
+                        next({
+                            data: null,
+                            errors: result.errors,
+                            hasNext: false
+                        })
+                        complete()
+
                         console.log(result.errors)
                     }
                     //next(result);
@@ -107,7 +112,11 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
 
                         // TODO: automatically add this to the request set, and strip it in result
                         if (process.env.NODE_ENV !== 'production' && !mercureUrl) {
-                            next({ errors: [new Error('missing mercureUrl in GraphQL Subscription response')], hasNext: false })
+                            next({
+                                data: null,
+                                errors: [new Error('missing mercureUrl in GraphQL Subscription response')],
+                                hasNext: false
+                            })
                             complete()
 
                             return
