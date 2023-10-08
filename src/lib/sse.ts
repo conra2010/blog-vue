@@ -73,7 +73,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     return null
   })
 
-  //  status and event sourc
+  //  status and event source
   const status: Ref<string> = ref('CLOSED')
 
   const eventSource: Ref<EventSource | null> = ref(null)

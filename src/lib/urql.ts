@@ -82,7 +82,7 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
         executeFetch(request, operation, fetchOptions).then(
             (result) => {
                 if (result !== undefined) {
-                    //  TODO might be error, following code won't work
+                    //  might be an error here
                     //  
                     //  result: {errors: Array(n) = [TypeError: Failed to ..., ...]}
                     if (result.errors?.length > 0) {
