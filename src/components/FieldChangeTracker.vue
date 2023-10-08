@@ -2,6 +2,9 @@
 import { ref, watch, computed, toRefs } from 'vue';
 import { gql, useMutation, useQuery, useSubscription, type TypedDocumentNode } from '@urql/vue'
 import { useOnline } from '@vueuse/core';
+import { useQuasar } from 'quasar';
+
+const $q = useQuasar()
 
 const props = defineProps<{ iri: string, label: string, og: string, mut: TypedDocumentNode }>()
 
@@ -32,6 +35,11 @@ function executeUpdateFieldMutation() {
         id:iri.value, fvalue:uv.value
     }).then(result => {
         console.log('updateFieldMutation.exec: result: ', result)
+
+        if (result.error) {
+            $q.notify({ message: 'Failed to save changes', type: 'error', closeBtn: true, timeout: 10000 })
+            conflict.value = true
+        }
     })
 }
 

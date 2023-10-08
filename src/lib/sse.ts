@@ -188,10 +188,10 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   } = options
 
   function reconnect() {
-
-    close()
-
     if (_ntries < _retry_max_ntries) {
+
+      status.value = 'RETRY'
+
       // reconnect after random timeout
       const timeout = Math.round(_retry_baseline + _retry_rng_span * Math.random());
       
@@ -199,7 +199,6 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
         console.log(logid.value, 'Will attempt to reconnect for lastEventID ', (lastEventID.value !== '' ? lastEventID.value : '(undefined)'))
         
         _ntries++
-
         //  a new event source
         eventSource.value = new EventSource(reconnectURL(), { withCredentials })
       }, timeout);

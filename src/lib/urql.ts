@@ -111,10 +111,10 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                         //console.log('Mercure Subscription recv URL: ', mercureUrl)
 
                         // TODO: automatically add this to the request set, and strip it in result
-                        if (process.env.NODE_ENV !== 'production' && !mercureUrl) {
+                        if (!mercureUrl) {
                             next({
                                 data: null,
-                                errors: [new Error('missing mercureUrl in GraphQL Subscription response')],
+                                errors: [new Error('Missing event stream URL in GraphQL response')],
                                 hasNext: false
                             })
                             complete()
@@ -160,7 +160,7 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                         watch(error, () => {
                             next({
                                 data: null,
-                                errors: [new Error('Mercure event stream error')],
+                                errors: [new Error('GraphQL Subscription event stream error')],
                                 hasNext: true
                             })
                         })
