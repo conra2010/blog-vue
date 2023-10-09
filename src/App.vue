@@ -13,6 +13,21 @@ import { watch } from 'vue'
 import { useNetwork, useDateFormat, useOnline } from '@vueuse/core'
 
 import { useQuasar } from 'quasar'
+import { useCounterStore } from './stores/counter';
+import { pipe, toObservable } from 'wonka';
+import { valueFromAST } from 'graphql';
+import { signalingExchange } from './lib/adv/logExchange';
+
+const { retry$, nextRetryString } = useCounterStore()
+
+const foo = pipe(retry$, 
+  toObservable)
+
+foo.subscribe({
+  next: (value) => console.log(value),
+  complete: () => {},
+  error: () => {}
+})
 
 const isOnline = useOnline()
 
@@ -22,7 +37,7 @@ async function fetchWithTimeout(
   cfg: number
 ) {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 3000)
+  const timeout = setTimeout(() => controller.abort(), cfg)
 
   const response = await fetch(url, {
     ...opts,
@@ -39,6 +54,7 @@ const client = new Client({
   exchanges: [
     //  Google Chrome has urql dev tools, uncomment this to send data to them
     logExchange('urn:head'),
+    signalingExchange(''),
     mapExchange({
       onError(error, operation) {
         console.log(`Operation with ${operation.key} failed: `, error)

@@ -7,8 +7,11 @@ import type { Exchange, ExecutionResult, OperationResult } from '@urql/core';
 
 import { useMercure, type MercureSource } from '@/lib/sse'
 import { CADDY_MERCURE_URL, MERCURE_ENTRYPOINT } from '@/config/api';
-import { toRefs, watch } from 'vue';
+import { toRefs, watch, inject } from 'vue';
 import { makeFetchSource } from '@urql/core/internal';
+import mitt, { type Emitter } from 'mitt'
+import type { MercureSourceEvents } from '@/lib/sse';
+import { useSignalsStore } from '@/stores/signals';
 
 // see [urql subscriptions](https://formidable.com/open-source/urql/docs/advanced/subscriptions/)
 //
@@ -50,6 +53,10 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
             typeof AbortController !== 'undefined'
                 ? new AbortController()
                 : undefined;
+
+        const {emitter} = useSignalsStore()
+        //: Emitter<MercureSourceEvents> | undefined = inject('emitter')
+        //mitt<MercureSourceEvents>()
 
         //  setup a request to execute the GraphQL Subscription; this
         //  will return the Mercure URL that we need to subscribe to
@@ -131,11 +138,17 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                         //  change the URL Caddy sees to the URL the web app needs
                         const mercure = useMercure(mercureUrl.replace(CADDY_MERCURE_URL, MERCURE_ENTRYPOINT), { withCredentials: false }, {
                             //  reconfigure timeout on error
-                            retry_baseline: 1000, retry_rng_span: 500
+                            retry_baseline_fn(n) {
+                                // const steps = ['250ms', '1s', '1s', '1s', '5s', '1m', '20m', '60m']
+                                const steps = ['250ms', '1s', '1s', '1s', '5s', '20s', '1m', '5m', '20m']
+                                if (n <= steps.length) { return steps[n - 1] }
+                                return 'infinity'
+                            },
+                            retry_rng_span: 500
                         });
 
                         //  we are interested on these
-                        const { lastEventID, eventType, dataFieldsValues, error } = toRefs(mercure)
+                        const { lastEventID, eventType, dataFieldsValues, status, error, severity } = toRefs(mercure)
 
                         watch(lastEventID, () => {
                             //  events of type 'GraphQL Subscription'
@@ -147,24 +160,48 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                                 if (dataFieldsValues.value && dataFieldsValues.value.length > 0) {
                                     const dvalue = dataFieldsValues.value[0]
                                     //  prepare result
-                                    result = {
-                                        ...result,
-                                        data: { ...result.data, [selectionName]: { ...result.data[selectionName], ...dvalue}}
+                                    if (dvalue.post.author === 'eps') {
+                                        next({
+                                            data: null,
+                                            errors: [new Error('GraphQL Subscription event stream error')],
+                                            hasNext: true
+                                        })
+                                    } else {
+                                        result = {
+                                            ...result,
+                                            data: { ...result.data, [selectionName]: { ...result.data[selectionName], ...dvalue}},
+                                            errors: [],
+                                            hasNext: true
+                                        }
+                                        next(result)
                                     }
                                     //  notify the subscriber that there's another value (?)
-                                    next(result)
                                 }
                             }
                         })
 
-                        watch(error, () => {
+                        // watch(error, () => {
+                        //     if (severity.value === 'SEVERE') {
+                        //         emitter?.emit('foo', 'severe GraphQL error')
+                        //         next({
+                        //             data: null,
+                        //             errors: [new Error('GraphQL Subscription event stream irrecuperable error')]
+                        //         })
+                        //     } else {
+                        //         emitter?.emit('foo', 'GraphQL error')
+                        //         next({
+                        //             data: null,
+                        //             errors: [new Error('GraphQL Subscription event stream error')]
+                        //         })
+                        //     }
+                        // })
+                        
+                        watch(status, () => {
                             next({
-                                data: null,
-                                errors: [new Error('GraphQL Subscription event stream error')],
-                                hasNext: true
+                                data: { [`${selectionName}_MercureSourceTracing`]: { status: status.value } }
                             })
                         })
-                        
+
                         //  keep the subscription here
                         subscriptions.push(mercure);
                     });

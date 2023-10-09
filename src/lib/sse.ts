@@ -1,10 +1,19 @@
-import { ref, computed, watch, shallowRef, type Ref, reactive, toRefs } from 'vue'
+import { ref, computed, watch, shallowRef, type Ref, reactive, inject } from 'vue'
 import { refDebounced, tryOnScopeDispose, watchDebounced } from '@vueuse/core'
 import { useEventListener, useWebWorkerFn } from '@vueuse/core'
 import { ReconnectingEventSource } from './recon'
 import { v4 as uuidv4 } from 'uuid'
 
 import { useNetwork, useDateFormat } from '@vueuse/core'
+
+import { Duration } from '@icholy/duration'
+
+import mitt, { type Emitter } from 'mitt'
+import { useSignalsStore } from '@/stores/signals'
+
+export type MercureSourceEvents = {
+  foo: string;
+}
 
 export type UseEventSourceOptions = EventSourceInit
 
@@ -43,6 +52,8 @@ export interface MercureSource {
   error: Event | null;
   //  to debug
   lastEventIDOnError: string;
+  //  testing
+  severity: string;
   //  teardown
   close: any;
 }
@@ -51,10 +62,9 @@ export interface UseMercureConfiguration {
   /**
    * will try to reconnect at baseline + rng span
    */
-  retry_baseline?: number;
   retry_rng_span?: number;
 
-  retry_max_ntries?: number;
+  retry_baseline_fn?: (n: number) => string
 }
 
 export function useMercure(url: string, options: UseEventSourceOptions = {}, configuration?: UseMercureConfiguration): MercureSource {
@@ -89,10 +99,16 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
 
   const lastEventIDOnError: Ref<string> = ref('')
 
-  //  configuration
-  const _retry_baseline: number = (configuration?.retry_baseline ?? 6000)
+  const severity: Ref<string> = ref('')
+
+  //  configuration: retry up to # times with waiting times of baseline * fx + rng span
+  function _retry_baseline_default_fn(n: number): string {
+    return 'infinity'
+  }
+
+  const _retry_timeout_fn: (n: number) => string = (configuration?.retry_baseline_fn ?? _retry_baseline_default_fn)
+
   const _retry_rng_span: number = (configuration?.retry_rng_span ?? 3000)
-  const _retry_max_ntries: number = (configuration?.retry_max_ntries ?? 3)
 
   //  reconnect with lastEventID
   let _timer: number;
@@ -104,6 +120,8 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
 
   //  network status
   const { isOnline, onlineAt, offlineAt } = useNetwork()
+
+  const { emitter } = useSignalsStore()
 
   watchDebounced(isOnline, () => {
     if (!isOnline.value) {
@@ -159,7 +177,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     try {
       return [null, JSON.parse(str)]
     } catch (ex) {
-      return [null]
+      return [ex, null]
     }
   }
 
@@ -187,23 +205,47 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     withCredentials = false,
   } = options
 
+  const duration = (spec: string): [any, any] => {
+    try {
+      const dx = new Duration(spec)
+      return [null, dx.milliseconds()]
+    } catch (ex) {
+      return [ex, null]
+    }
+  }
+
   function reconnect() {
-    if (_ntries < _retry_max_ntries) {
 
-      status.value = 'RETRY'
+    _ntries++
+  
+    // reconnect after random timeout
+    const spec = _retry_timeout_fn(_ntries)
 
-      // reconnect after random timeout
-      const timeout = Math.round(_retry_baseline + _retry_rng_span * Math.random());
-      
-      _timer = setTimeout(() => {
-        console.log(logid.value, 'Will attempt to reconnect for lastEventID ', (lastEventID.value !== '' ? lastEventID.value : '(undefined)'))
-        
-        _ntries++
-        //  a new event source
-        eventSource.value = new EventSource(reconnectURL(), { withCredentials })
-      }, timeout);
+    if (spec !== 'infinity') {
+      severity.value = 'RETRYING'
+
+      const [ex, dx] = duration(spec)
+      if (ex) {
+        console.log(logid.value, 'Failed parsing configuration timeout: ', spec)
+        severity.value = 'SEVERE'
+      } else {
+        console.log(logid.value, 'Dx ', dx)
+
+        const timeout = Math.round(dx + _retry_rng_span * Math.random());
+          
+        console.log(logid.value, 'Will reconnect in approx ', new Duration(timeout).toString(), ' for lastEventID ', (lastEventID.value !== '' ? lastEventID.value : '(undefined)'))
+
+        _timer = setTimeout(() => {         
+          
+          emitter.emit('foo', 'hello wordl!')
+
+          //  a new event source
+          eventSource.value = new EventSource(reconnectURL(), { withCredentials })
+        }, timeout);
+      }
     } else {
       console.log(logid.value, 'Max retries reached with lastEventID ', (lastEventID.value !== '' ? lastEventID.value : '(undefined)'))
+      severity.value = 'SEVERE'
     }
   }
 
@@ -214,6 +256,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
       eventSource.value.onopen = () => {
         status.value = 'OPEN'
         error.value = null
+        severity.value = ''
 
         //  reference value
         _lastErrorTimeStamp = performance.now()
@@ -221,6 +264,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
         //  reset retry count
         _ntries = 0;
       }
+
       //  reconnect on error
       eventSource.value.onerror = (e) => {
         //  debugging Mercure disconnects (config option)
@@ -233,8 +277,10 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
         //  reference
         _lastErrorTimeStamp = mark
 
+        //  will try to recover from error
         error.value = e
         lastEventIDOnError.value = lastEventID.value
+        severity.value = 'UNKNOWN'
 
         console.log(logid.value, ' error, closing connection...')
 
@@ -244,6 +290,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
         //  try
         reconnect()
       }
+
       //  generic 'message' type
       eventSource.value.onmessage = (e: MessageEvent) => {
         pre(e)
@@ -331,6 +378,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
 
     error,
     lastEventIDOnError,
+    severity,
 
     //  teardown
     close

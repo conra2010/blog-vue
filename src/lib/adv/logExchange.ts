@@ -1,4 +1,6 @@
+import { useSignalsStore } from '@/stores/signals';
 import { mapExchange, type Exchange, type Operation } from '@urql/core'
+import { shallowRef, toRefs, type ShallowRef } from 'vue';
 import { fromArray, merge, pipe, map, filter, subscribe, makeSubject } from 'wonka';
 
 export const nopExchange = ({ client, forward }) => {
@@ -32,6 +34,34 @@ export const nopExchange = ({ client, forward }) => {
         return oprx$;
     };
 };
+
+export const signalingExchange = (options: string): Exchange => {
+
+    //  const/vars here
+    const { signal, unlink }= useSignalsStore()
+
+    return ({ forward }) => ops$ => {
+
+        const orpx$ = forward(ops$)
+
+        const ex$ = pipe(orpx$,
+            filter(value => {
+                if (value.operation.kind !== 'teardown') {
+                    if (value.error) {
+                        let k = value.operation.key
+                        let s = signal(k)
+                        
+                        s!.value = true
+                    }
+                } else {
+                    unlink(value.operation.key)
+                }
+                return true
+            }))
+
+        return ex$;
+    }
+}
 
 export const otherExchange = (options: string): Exchange => {
 

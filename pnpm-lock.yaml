@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@icholy/duration':
+    specifier: ^5.1.0
+    version: 5.1.0
   '@quasar/extras':
     specifier: ^1.16.6
     version: 1.16.6
@@ -29,6 +32,9 @@ dependencies:
   graphql:
     specifier: ^16.8.1
     version: 16.8.1
+  mitt:
+    specifier: ^3.0.1
+    version: 3.0.1
   pinia:
     specifier: ^2.1.6
     version: 2.1.6(typescript@5.2.2)(vue@3.3.4)
@@ -332,6 +338,10 @@ packages:
     requiresBuild: true
     dev: true
     optional: true
+
+  /@icholy/duration@5.1.0:
+    resolution: {integrity: sha512-I/zdjC6qYdwWJ2H1/PZbI3g58pPIiI/eOe5XDTtQ/v36d0ogcvAylqwOIWj/teY1rBnIMzUyWfX7PMm9I67WWg==}
+    dev: false
 
   /@jridgewell/sourcemap-codec@1.4.15:
     resolution: {integrity: sha512-eF2rxCRulEKXHTRiDrDy6erMYWqNw4LPdQ8UQA4huuxaQsVeRPFl2oM8oDGxMFhJUWZf9McpLtJasDDZb/Bpeg==}
@@ -857,6 +867,10 @@ packages:
     dependencies:
       brace-expansion: 2.0.1
     dev: true
+
+  /mitt@3.0.1:
+    resolution: {integrity: sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw==}
+    dev: false
 
   /muggle-string@0.3.1:
     resolution: {integrity: sha512-ckmWDJjphvd/FvZawgygcUeQCxzvohjFO5RxTjj4eq8kw359gFF3E1brjfI+viLMxss5JrHTDRHZvu2/tuy0Qg==}

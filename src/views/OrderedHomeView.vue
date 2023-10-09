@@ -9,7 +9,9 @@
       separator
       v-slot="{ item, index }">
       <q-item :key="index">
-        <PostSummaryItem :iri="item" :rmref="delta.deleted" :insref="delta.inserted"/>
+        <VErrorBoundary>
+          <PostSummaryItem :iri="item" :rmref="delta.deleted" :insref="delta.inserted"/>
+        </VErrorBoundary>
       </q-item>
     </q-virtual-scroll>
   </div>
@@ -25,6 +27,7 @@ import { MERCURE_WELL_KNOWN, MERCURE_TOPICS_PREFIX } from '@/config/api';
 
 import { useOnline } from '@vueuse/core';
 import { useQuasar } from 'quasar';
+import VErrorBoundary from '@/components/VErrorBoundary.vue';
 
 const $q = useQuasar()
 

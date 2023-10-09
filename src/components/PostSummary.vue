@@ -1,11 +1,17 @@
 <script lang="ts" setup>
-import { computed, ref, watch, toRefs, type Ref } from 'vue';
+import { computed, ref, shallowRef, watch, toRefs, type Ref, type ShallowRef, inject } from 'vue';
 import { gql, useMutation, useQuery, useSubscription } from '@urql/vue'
 import { reactiveComputed, refDebounced, useOnline } from '@vueuse/core';
 import PostSummaryDebounce from './PostSummaryDebounce.vue';
 import FieldChangeTracker from './FieldChangeTracker.vue';
 import { useQuasar } from 'quasar';
 import QCardInlineNotification from './QCardInlineNotification.vue';
+
+import { useSignalsStore } from '@/stores/signals';
+
+import mitt, { type Emitter } from 'mitt'
+import { type MercureSourceEvents } from '@/lib/sse'
+import { fasLinesLeaning } from '@quasar/extras/fontawesome-v6';
 
 //  component receives the Post IRI as prop
 const props = defineProps<{
@@ -25,6 +31,19 @@ const isRunning = ref(true)
 const errorref: Ref<any | undefined> = ref(undefined)
 
 const errortag: Ref<string | undefined> = ref('')
+
+const {emitter} = useSignalsStore()
+//: Emitter<MercureSourceEvents> | undefined = inject('emitter')
+    //mitt<MercureSourceEvents>()
+
+emitter?.on('foo', (e) => {
+    console.log(e)
+})
+
+interface Signal {
+    key: number;
+    isRunning: ShallowRef<boolean>;
+}
 
 interface FieldChangeTracking<T> {
     og: Ref<T>;
@@ -63,13 +82,20 @@ const details = computed(() => {
 })
 
 //  graphql subscription optional handler function to process received data
+const isMercureEventSourceOpen = ref(false)
+
 const handleSubscription = (messages = [], response) => {
     //  TODO
     if (response) {
-        detailsQuery.data.value.post.stars = response.updatePostSubscribe.post.stars
-        detailsQuery.data.value.post.author = response.updatePostSubscribe.post.author
-        detailsQuery.data.value.post.title = response.updatePostSubscribe.post.title
-        return [response.updatePostSubscribe.post, ...messages]
+        if (response.updatePostSubscribe) {
+            detailsQuery.data.value.post.stars = response.updatePostSubscribe.post.stars
+            detailsQuery.data.value.post.author = response.updatePostSubscribe.post.author
+            detailsQuery.data.value.post.title = response.updatePostSubscribe.post.title
+            return [response.updatePostSubscribe.post, ...messages]
+        }
+        if (response.updatePostSubscribe_MercureSourceTracing) {
+            isMercureEventSourceOpen.value = (response.updatePostSubscribe_MercureSourceTracing.status === 'OPEN')
+        }
     }
     return messages
 }
@@ -80,20 +106,23 @@ const handleSubscription = (messages = [], response) => {
 //  topic with not only the selection fields, but including the given resource
 //  ID!; so we'll get notified only about that particular resource
 //
+const { signal } = useSignalsStore()
+
 const fastTrackingFieldsSubscription = useSubscription({
     query: gql`
-    subscription FastTrackingSubscription ($iriv: ID!) {
-      updatePostSubscribe (input: {id: $iriv, clientSubscriptionId: "urn:blog-vue:deefbf60"}) {
-        post {
-            title
-            author
-            stars
+        subscription FastTrackingSubscription ($iriv: ID!) {
+            updatePostSubscribe (input: {id: $iriv, clientSubscriptionId: "urn:blog-vue:deefbf60"}) {
+                post {
+                    title
+                    author
+                    stars
+                }
+                mercureUrl
+                clientSubscriptionId
+            }
         }
-        mercureUrl
-        clientSubscriptionId
-      }
-    }
-  `, variables: { iriv: iri },
+    `,
+    variables: { iriv: iri }
 }, handleSubscription)
 
 watch(fastTrackingFieldsSubscription.error, () => {
@@ -185,11 +214,17 @@ const deletePostResult = useMutation(gql`
 </script>
 
 <template>
-    <div v-if="isRunning">
+    <div>
         <div v-if="details">
             <q-card class="my-card q-mb-sm" :style="qcardStyle">
                 <q-card-section>
-                    <q-badge color="isRunning ? blue : red">
+                    <q-badge v-if="isMercureEventSourceOpen" color="blue">
+                        {{ iri }}
+                    </q-badge>
+                    <q-badge v-else color="red">
+                        <q-icon name="warning">
+                            <q-tooltip>Some error!</q-tooltip>
+                        </q-icon>
                         {{ iri }}
                     </q-badge>
                 </q-card-section>
@@ -215,9 +250,6 @@ const deletePostResult = useMutation(gql`
                 </q-card-actions>
             </q-card>
         </div>
-    </div>
-    <div v-else>
-        <QCardInlineNotification :error="errorref" :tag="errortag"/>
     </div>
 </template>
 
