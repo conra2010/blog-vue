@@ -54,10 +54,6 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                 ? new AbortController()
                 : undefined;
 
-        const {emitter} = useSignalsStore()
-        //: Emitter<MercureSourceEvents> | undefined = inject('emitter')
-        //mitt<MercureSourceEvents>()
-
         //  setup a request to execute the GraphQL Subscription; this
         //  will return the Mercure URL that we need to subscribe to
         //  in order to receive update events
@@ -189,19 +185,6 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                                 extensions: { [`urn:mercure:${selectionName}`]: { status:status.value} }
                             })
                         })
-                        // watch(status, () => {
-                        //     // result = {
-                        //     //     ...result,
-                        //     //     data: { ...result.data,
-                        //     //         [selectionName]: { ...result.data[selectionName] },
-                        //     //         [`urn:mercure:${selectionName}`]: { status: status.value },
-                        //     //     }
-                        //     // }
-                        //     // next(result)
-                        //     // next({
-                        //     //     data: { [`urn:mercure:${selectionName}`]: { status: status.value } }
-                        //     // })
-                        // })
 
                         //  keep the subscription here
                         subscriptions.push(mercure);

@@ -8,7 +8,6 @@ import { useNetwork, useDateFormat } from '@vueuse/core'
 
 import { Duration } from '@icholy/duration'
 
-import mitt, { type Emitter } from 'mitt'
 import { useSignalsStore } from '@/stores/signals'
 
 export type MercureSourceEvents = {
@@ -94,8 +93,6 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     const hist = status_history.history.value
     console.log(logid.value, ' status history <<< ', JSON.stringify(status_history.history.value.map((x) => x.snapshot)))
   })
-
-  const sig = useSignalsStore()
   
   //  urn
   const urn: string = uuidv4()

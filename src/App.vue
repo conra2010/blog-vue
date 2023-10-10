@@ -54,7 +54,7 @@ const client = new Client({
   url: GRAPHQL_ENTRYPOINT,
   exchanges: [
     //  Google Chrome has urql dev tools, uncomment this to send data to them
-    logExchange('urn:head'),
+    logExchange('head '),
     mapExchange({
       onError(error, operation) {
         console.log(`Operation with ${operation.key} failed: `, error)
@@ -62,18 +62,18 @@ const client = new Client({
     }),
     //otherExchange('foo bar'),
     devtoolsExchange,
-    logExchange('urn:cache'),
+    logExchange('cache'),
     cacheExchange,
     // cacheExchange({}),
-    logExchange('urn:ex:retry'),
+    logExchange('retry'),
     retryExchange({
       retryIf: (error) => { return true },
       maxNumberAttempts: 3
     }),
-    logExchange('urn:fetch'),
+    logExchange('fetch'),
     fetchExchange,
     //  see lib/urql.ts
-    logExchange('urn:subs'),
+    logExchange('subs '),
     subscriptionExchange({ forwardSubscription })
   ],
   fetch: (url,opts) => fetchWithTimeout(url,opts,5000)

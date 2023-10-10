@@ -89,16 +89,10 @@ const isMercureEventSourceOpen = ref(true)
 
 const handler: SubscriptionHandler<any, any> = (prev: any, data: any): any => {
     if (data) {
-
         if (data.updatePostSubscribe) {
             _.assign(detailsQuery.data.value.post, data.updatePostSubscribe.post)
             
             //detailsQuery.data.value.post = data.updatePostSubscribe.post || detailsQuery.data.value.post
-        }
-        if (data['urn:mercure:updatePostSubscribe']) {
-            isMercureEventSourceOpen.value = (data['urn:mercure:updatePostSubscribe']['status'] === 'OPEN')
-            
-            errortag.value = data['urn:mercure:updatePostSubscribe']['status']
         }
     }
     return data
