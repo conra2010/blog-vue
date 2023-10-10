@@ -2,8 +2,8 @@
   {{ isOnline }}
   <div v-if="iris">
     <q-virtual-scroll
-      virtualScrollSliceSize="10"
-      virtualScrollItemSize="330"
+      virtualScrollSliceSize="8"
+      virtualScrollItemSize="256"
       style="max-height: 1000px;"
       :items="iris"
       separator

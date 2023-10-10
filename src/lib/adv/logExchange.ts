@@ -2,6 +2,7 @@ import { useSignalsStore } from '@/stores/signals';
 import { mapExchange, type Exchange, type Operation } from '@urql/core'
 import { shallowRef, toRefs, type ShallowRef } from 'vue';
 import { fromArray, merge, pipe, map, filter, subscribe, makeSubject } from 'wonka';
+import { truncate } from 'lodash'
 
 export const nopExchange = ({ client, forward }) => {
     //  ExchangeIO function
@@ -50,7 +51,7 @@ export const signalingExchange = (options: string): Exchange => {
                     if (value.error) {
                         let k = value.operation.key
                         let s = signal(k)
-                        
+
                         s!.value = true
                     }
                 } else {
@@ -114,7 +115,8 @@ export const logOpsExchange = ({ client, forward }) => {
 export const logExchange = (urn: string) => {
     return mapExchange({
         onOperation(op) {
-            console.log('OP ', urn, '/', op.key, ' >> ', op)
+            const doc = truncate(op.query.loc?.source.body, {'length':32})
+            console.log('>> OP >> ', urn, '/', op.key, ' ', doc, ' >> ', op)
 
             // const ax = fromArray([1,2,3])
             // const bx = fromArray([4,5,6])
@@ -125,7 +127,8 @@ export const logExchange = (urn: string) => {
             // )
         },
         onResult(rx) {
-            console.log('RX ', urn, '/', rx.operation.key, ' << ', rx)
+            const doc = truncate(rx.operation.query.loc?.source.body, {'length':32})
+            console.log('<< RX << ', urn, '/', rx.operation.key, ' ', doc, ' << ', rx)
         }
     });
 }

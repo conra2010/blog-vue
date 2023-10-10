@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { computed, ref, shallowRef, watch, toRefs, type Ref, type ShallowRef, inject } from 'vue';
-import { gql, useMutation, useQuery, useSubscription } from '@urql/vue'
+import { gql, useMutation, useQuery, useSubscription, type SubscriptionHandler } from '@urql/vue'
 import { reactiveComputed, refDebounced, useOnline } from '@vueuse/core';
 import PostSummaryDebounce from './PostSummaryDebounce.vue';
 import FieldChangeTracker from './FieldChangeTracker.vue';
@@ -12,6 +12,9 @@ import { useSignalsStore } from '@/stores/signals';
 import mitt, { type Emitter } from 'mitt'
 import { type MercureSourceEvents } from '@/lib/sse'
 import { fasLinesLeaning } from '@quasar/extras/fontawesome-v6';
+import { assertWrappingType } from 'graphql';
+
+import * as _ from 'lodash'
 
 //  component receives the Post IRI as prop
 const props = defineProps<{
@@ -82,7 +85,24 @@ const details = computed(() => {
 })
 
 //  graphql subscription optional handler function to process received data
-const isMercureEventSourceOpen = ref(false)
+const isMercureEventSourceOpen = ref(true)
+
+const handler: SubscriptionHandler<any, any> = (prev: any, data: any): any => {
+    if (data) {
+
+        if (data.updatePostSubscribe) {
+            _.assign(detailsQuery.data.value.post, data.updatePostSubscribe.post)
+            
+            //detailsQuery.data.value.post = data.updatePostSubscribe.post || detailsQuery.data.value.post
+        }
+        if (data['urn:mercure:updatePostSubscribe']) {
+            isMercureEventSourceOpen.value = (data['urn:mercure:updatePostSubscribe']['status'] === 'OPEN')
+            
+            errortag.value = data['urn:mercure:updatePostSubscribe']['status']
+        }
+    }
+    return data
+}
 
 const handleSubscription = (messages = [], response) => {
     //  TODO
@@ -123,7 +143,15 @@ const fastTrackingFieldsSubscription = useSubscription({
         }
     `,
     variables: { iriv: iri }
-}, handleSubscription)
+}, handler)
+
+watch(fastTrackingFieldsSubscription.extensions, () => {
+    const ext = fastTrackingFieldsSubscription.extensions?.value
+    if (ext && ext['urn:mercure:updatePostSubscribe']) {
+        isMercureEventSourceOpen.value = (ext['urn:mercure:updatePostSubscribe']['status'] === 'OPEN')
+    }
+    console.log('fts ext: ', fastTrackingFieldsSubscription.extensions)
+})
 
 watch(fastTrackingFieldsSubscription.error, () => {
     console.log('fts error ref: ', fastTrackingFieldsSubscription.error)
@@ -203,9 +231,14 @@ function deletePost() {
     })
 }
 
+//  post { id } selection forces __typename field in result and urql cache 
+//  invalidation; to avoid stale values on Post queries
 const deletePostResult = useMutation(gql`
     mutation DeletePost ($id: ID!) {
         deletePost (input: { id: $id, clientMutationId: "urn:blog-vue:a68fc51b" }) {
+            post {
+                id
+            }
             clientMutationId
         }
     }
@@ -218,6 +251,9 @@ const deletePostResult = useMutation(gql`
         <div v-if="details">
             <q-card class="my-card q-mb-sm" :style="qcardStyle">
                 <q-card-section>
+                    <q-badge :color="isRunning ? 'green' : 'red'">
+                        (running)
+                    </q-badge>
                     <q-badge v-if="isMercureEventSourceOpen" color="blue">
                         {{ iri }}
                     </q-badge>
@@ -227,6 +263,7 @@ const deletePostResult = useMutation(gql`
                         </q-icon>
                         {{ iri }}
                     </q-badge>
+                    <p>{{ errortag }}</p>
                 </q-card-section>
                 <q-card-section>
                     <div class="text-h5 q-mt-sm q-mb-xs">

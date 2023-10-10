@@ -14,11 +14,11 @@ export const useSignalsStore = defineStore('signals', () => {
 
     const signal = computed(() => (key: number) => {
         if (signals.get(key)) {
-            return signals.get(key)
+            return signals.get(key)!
         }
 
         signals.set(key, shallowRef(false))
-        return signals.get(key)
+        return signals.get(key)!
     })
 
     const unlink = computed(() => (key: number) => {

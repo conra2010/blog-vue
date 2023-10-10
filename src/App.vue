@@ -2,7 +2,8 @@
 import { RouterView } from 'vue-router'
 
 import { forwardSubscription } from '@/lib/urql'
-import { fetchExchange, logOpsExchange, retryExchange, logExchange, otherExchange, cacheExchange } from '@/lib/adv'
+import { fetchExchange, logOpsExchange, retryExchange, logExchange, cacheExchange, otherExchange } from '@/lib/adv'
+// import { cacheExchange } from '@urql/exchange-graphcache'
 
 import { Client, mapExchange, provideClient, subscriptionExchange } from '@urql/vue';
 import { devtoolsExchange } from '@urql/devtools'
@@ -54,7 +55,6 @@ const client = new Client({
   exchanges: [
     //  Google Chrome has urql dev tools, uncomment this to send data to them
     logExchange('urn:head'),
-    signalingExchange(''),
     mapExchange({
       onError(error, operation) {
         console.log(`Operation with ${operation.key} failed: `, error)
@@ -62,21 +62,18 @@ const client = new Client({
     }),
     //otherExchange('foo bar'),
     devtoolsExchange,
+    logExchange('urn:cache'),
     cacheExchange,
-    //logExchange('urn:ex:retry'),
-    // retryExchange({
-    //   retryIf: error => {
-    //     if (error.graphQLErrors.length > 0) {
-    //       console.log('retryExchange GraphQL errors')
-    //     }
-    //     if (error.networkError) {
-    //       console.log('retryExchange Network error')
-    //     }
-    //     return true
-    //   }
-    // }),
+    // cacheExchange({}),
+    logExchange('urn:ex:retry'),
+    retryExchange({
+      retryIf: (error) => { return true },
+      maxNumberAttempts: 3
+    }),
+    logExchange('urn:fetch'),
     fetchExchange,
     //  see lib/urql.ts
+    logExchange('urn:subs'),
     subscriptionExchange({ forwardSubscription })
   ],
   fetch: (url,opts) => fetchWithTimeout(url,opts,5000)
@@ -114,13 +111,17 @@ watch(isOnline, () => {
         <q-route-tab to="/about" label="About" />
       </q-tabs>
     </q-header>
-
+<!-- 
     <q-page-container>
       <router-view v-slot="{ Component }">
         <keep-alive>
           <component :is="Component" :key="$route.fullPath"></component>
         </keep-alive>
       </router-view>
+    </q-page-container> -->
+
+    <q-page-container>
+      <router-view></router-view>
     </q-page-container>
 
     <q-footer elevated class="bg-grey-8 text-white">

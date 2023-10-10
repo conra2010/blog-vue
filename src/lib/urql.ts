@@ -98,7 +98,7 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                             errors: result.errors,
                             hasNext: false
                         })
-                        complete()
+                        //complete()
 
                         return
                     }
@@ -124,7 +124,7 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                                 errors: [new Error('Missing event stream URL in GraphQL response')],
                                 hasNext: false
                             })
-                            complete()
+                            //complete()
 
                             return
                         }
@@ -139,8 +139,9 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                         const mercure = useMercure(mercureUrl.replace(CADDY_MERCURE_URL, MERCURE_ENTRYPOINT), { withCredentials: false }, {
                             //  reconfigure timeout on error
                             retry_baseline_fn(n) {
-                                // const steps = ['250ms', '1s', '1s', '1s', '5s', '1m', '20m', '60m']
-                                const steps = ['250ms', '1s', '1s', '1s', '5s', '20s', '1m', '5m', '20m']
+                                // return '5s'
+                                // const steps = ['250ms', '1s', '1s', '1s', '5s', '20s', '1m', '5m', '20m']
+                                const steps = ['250ms']
                                 if (n <= steps.length) { return steps[n - 1] }
                                 return 'infinity'
                             },
@@ -160,47 +161,47 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                                 if (dataFieldsValues.value && dataFieldsValues.value.length > 0) {
                                     const dvalue = dataFieldsValues.value[0]
                                     //  prepare result
-                                    if (dvalue.post.author === 'eps') {
-                                        next({
-                                            data: null,
-                                            errors: [new Error('GraphQL Subscription event stream error')],
-                                            hasNext: true
-                                        })
-                                    } else {
                                         result = {
                                             ...result,
                                             data: { ...result.data, [selectionName]: { ...result.data[selectionName], ...dvalue}},
-                                            errors: [],
-                                            hasNext: true
+                                            // errors: [],
+                                            // hasNext: true
                                         }
                                         next(result)
-                                    }
                                     //  notify the subscriber that there's another value (?)
                                 }
                             }
                         })
 
-                        // watch(error, () => {
-                        //     if (severity.value === 'SEVERE') {
-                        //         emitter?.emit('foo', 'severe GraphQL error')
-                        //         next({
-                        //             data: null,
-                        //             errors: [new Error('GraphQL Subscription event stream irrecuperable error')]
-                        //         })
-                        //     } else {
-                        //         emitter?.emit('foo', 'GraphQL error')
-                        //         next({
-                        //             data: null,
-                        //             errors: [new Error('GraphQL Subscription event stream error')]
-                        //         })
-                        //     }
-                        // })
+                        watch(error, () => {
+                            if (severity.value === 'SEVERE') {
+                                next({
+                                    data: null,
+                                    errors: [new Error('GraphQL Subscription event stream irrecuperable error')],
+                                    hasNext: false
+                                })
+                            }
+                        })
                         
                         watch(status, () => {
                             next({
-                                data: { [`${selectionName}_MercureSourceTracing`]: { status: status.value } }
+                                data: null,
+                                extensions: { [`urn:mercure:${selectionName}`]: { status:status.value} }
                             })
                         })
+                        // watch(status, () => {
+                        //     // result = {
+                        //     //     ...result,
+                        //     //     data: { ...result.data,
+                        //     //         [selectionName]: { ...result.data[selectionName] },
+                        //     //         [`urn:mercure:${selectionName}`]: { status: status.value },
+                        //     //     }
+                        //     // }
+                        //     // next(result)
+                        //     // next({
+                        //     //     data: { [`urn:mercure:${selectionName}`]: { status: status.value } }
+                        //     // })
+                        // })
 
                         //  keep the subscription here
                         subscriptions.push(mercure);

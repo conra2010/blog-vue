@@ -1,5 +1,5 @@
 import { ref, computed, watch, shallowRef, type Ref, reactive, inject } from 'vue'
-import { refDebounced, tryOnScopeDispose, watchDebounced } from '@vueuse/core'
+import { refDebounced, tryOnScopeDispose, useRefHistory, watchDebounced } from '@vueuse/core'
 import { useEventListener, useWebWorkerFn } from '@vueuse/core'
 import { ReconnectingEventSource } from './recon'
 import { v4 as uuidv4 } from 'uuid'
@@ -88,6 +88,15 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
 
   const eventSource: Ref<EventSource | null> = ref(null)
 
+  const status_history = useRefHistory(status)
+
+  watch(status, () => {
+    const hist = status_history.history.value
+    console.log(logid.value, ' status history <<< ', JSON.stringify(status_history.history.value.map((x) => x.snapshot)))
+  })
+
+  const sig = useSignalsStore()
+  
   //  urn
   const urn: string = uuidv4()
 
@@ -121,8 +130,6 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   //  network status
   const { isOnline, onlineAt, offlineAt } = useNetwork()
 
-  const { emitter } = useSignalsStore()
-
   watchDebounced(isOnline, () => {
     if (!isOnline.value) {
       //  went offline
@@ -138,7 +145,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   //  logging
   const logid = computed(() => {
     if (gqlSubscriptionID.value !== '') {
-      return urn + ":" + gqlSubscriptionID.value
+      return gqlSubscriptionID.value
     } else {
       return urn
     }
@@ -235,10 +242,8 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
           
         console.log(logid.value, 'Will reconnect in approx ', new Duration(timeout).toString(), ' for lastEventID ', (lastEventID.value !== '' ? lastEventID.value : '(undefined)'))
 
-        _timer = setTimeout(() => {         
-          
-          emitter.emit('foo', 'hello wordl!')
-
+        _timer = setTimeout(() => {
+          console.log(logid.value, ' new EventSource ')
           //  a new event source
           eventSource.value = new EventSource(reconnectURL(), { withCredentials })
         }, timeout);
@@ -356,6 +361,8 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
         }
       }
       
+      console.log(logid.value, ' new EventSource ')
+      //
       eventSource.value = new EventSource(url, { withCredentials })
     }
     catch (ex) {
