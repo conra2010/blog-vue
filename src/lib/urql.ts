@@ -12,6 +12,8 @@ import { makeFetchSource } from '@urql/core/internal';
 import mitt, { type Emitter } from 'mitt'
 import type { MercureSourceEvents } from '@/lib/sse';
 import { useSignalsStore } from '@/stores/signals';
+import { v4 as uuidv4 } from 'uuid'
+import * as _ from 'lodash'
 
 // see [urql subscriptions](https://formidable.com/open-source/urql/docs/advanced/subscriptions/)
 //
@@ -53,6 +55,8 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
             typeof AbortController !== 'undefined'
                 ? new AbortController()
                 : undefined;
+
+        const urn = `src:${uuidv4()}`
 
         //  setup a request to execute the GraphQL Subscription; this
         //  will return the Mercure URL that we need to subscribe to
@@ -136,8 +140,8 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                             //  reconfigure timeout on error
                             retry_baseline_fn(n) {
                                 // return '5s'
-                                // const steps = ['250ms', '1s', '1s', '1s', '5s', '20s', '1m', '5m', '20m']
-                                const steps = ['250ms']
+                                const steps = ['250ms', '1s', '1s', '1s', '5s', '20s', '1m', '5m', '20m']
+                                // const steps = ['250ms']
                                 if (n <= steps.length) { return steps[n - 1] }
                                 return 'infinity'
                             },
@@ -145,7 +149,7 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                         });
 
                         //  we are interested on these
-                        const { lastEventID, eventType, dataFieldsValues, status, error, severity } = toRefs(mercure)
+                        const { lastEventID, eventType, dataFieldsValues, urn, gqlSubscriptionID, status, error, severity } = toRefs(mercure)
 
                         watch(lastEventID, () => {
                             //  events of type 'GraphQL Subscription'
@@ -160,9 +164,19 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                                         result = {
                                             ...result,
                                             data: { ...result.data, [selectionName]: { ...result.data[selectionName], ...dvalue}},
+                                            extensions: {
+                                                [`urn:mercure:${selectionName}`]: {
+                                                    status:status.value,
+                                                    urn:urn.value,
+                                                    subscription:gqlSubscriptionID.value,
+                                                    lastEventID:lastEventID.value
+                                                }
+                                            }
                                             // errors: [],
                                             // hasNext: true
                                         }
+                                        console.log('subs source <<< ', lastEventID.value, ' ', _.truncate(urn.value,{length:24}))
+
                                         next(result)
                                     //  notify the subscriber that there's another value (?)
                                 }
@@ -182,7 +196,14 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                         watch(status, () => {
                             next({
                                 data: null,
-                                extensions: { [`urn:mercure:${selectionName}`]: { status:status.value} }
+                                extensions: {
+                                    [`urn:mercure:${selectionName}`]: {
+                                        status:status.value,
+                                        urn:urn.value,
+                                        subscription:gqlSubscriptionID.value,
+                                        lastEventID:lastEventID.value
+                                    }
+                                }
                             })
                         })
 

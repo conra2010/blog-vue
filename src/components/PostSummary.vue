@@ -1,10 +1,16 @@
 <script lang="ts" setup>
-import { computed, ref, shallowRef, watch, toRefs, type Ref, type ShallowRef, inject } from 'vue';
+import { computed, ref, shallowRef, watch, toRefs, type Ref, type ShallowRef, inject, onActivated, onDeactivated } from 'vue';
+import {
+    onBeforeMount, onBeforeUpdate,
+    onMounted,
+    onBeforeUnmount, onUnmounted } from 'vue';
 import { gql, useMutation, useQuery, useSubscription, type SubscriptionHandler } from '@urql/vue'
 import { reactiveComputed, refDebounced, useOnline } from '@vueuse/core';
 import PostSummaryDebounce from './PostSummaryDebounce.vue';
 import FieldChangeTracker from './FieldChangeTracker.vue';
 import { useQuasar } from 'quasar';
+import { v4 as uuidv4 } from 'uuid'
+
 import QCardInlineNotification from './QCardInlineNotification.vue';
 
 import { useSignalsStore } from '@/stores/signals';
@@ -26,6 +32,9 @@ const props = defineProps<{
 const { iri, rmref, insref } = toRefs(props)
 
 const $q = useQuasar()
+
+//  urn
+const urn: string = `vue:${uuidv4()}`
 
 const isOnline = useOnline()
 
@@ -90,9 +99,12 @@ const isMercureEventSourceOpen = ref(true)
 const handler: SubscriptionHandler<any, any> = (prev: any, data: any): any => {
     if (data) {
         if (data.updatePostSubscribe) {
+            console.log(urn, ' handler/data')
             _.assign(detailsQuery.data.value.post, data.updatePostSubscribe.post)
-            
             //detailsQuery.data.value.post = data.updatePostSubscribe.post || detailsQuery.data.value.post
+        }
+        if (data.extensions) {
+            console.log(urn, ' handler/extensions')
         }
     }
     return data
@@ -124,8 +136,8 @@ const { signal } = useSignalsStore()
 
 const fastTrackingFieldsSubscription = useSubscription({
     query: gql`
-        subscription FastTrackingSubscription ($iriv: ID!) {
-            updatePostSubscribe (input: {id: $iriv, clientSubscriptionId: "urn:blog-vue:deefbf60"}) {
+        subscription FastTrackingSubscription ($iriv: ID!, $csid: String!) {
+            updatePostSubscribe (input: {id: $iriv, clientSubscriptionId: $csid}) {
                 post {
                     title
                     author
@@ -136,15 +148,21 @@ const fastTrackingFieldsSubscription = useSubscription({
             }
         }
     `,
-    variables: { iriv: iri }
+    variables: { iriv: iri, csid: urn }
 }, handler)
 
+const exts: Ref<Record<string,any> | undefined> = ref(undefined)
+
 watch(fastTrackingFieldsSubscription.extensions, () => {
+
+    exts.value = fastTrackingFieldsSubscription.extensions?.value
+
     const ext = fastTrackingFieldsSubscription.extensions?.value
     if (ext && ext['urn:mercure:updatePostSubscribe']) {
         isMercureEventSourceOpen.value = (ext['urn:mercure:updatePostSubscribe']['status'] === 'OPEN')
+        console.log(urn, ' ', ext['urn:mercure:updatePostSubscribe'])
     }
-    console.log('fts ext: ', fastTrackingFieldsSubscription.extensions)
+    // console.log('fts ext: ', exts.value)
 })
 
 watch(fastTrackingFieldsSubscription.error, () => {
@@ -238,6 +256,34 @@ const deletePostResult = useMutation(gql`
     }
 `)
 
+onBeforeMount(() => {
+    console.log(urn, ' on before mount')
+})
+
+onMounted(() => {
+    console.log(urn, ' on mounted')
+})
+
+onBeforeUpdate(() => {
+    console.log(urn, ' on before update')
+})
+
+onBeforeUnmount(() => {
+    console.log(urn, ' on before unmount')
+})
+
+onUnmounted(() => {
+    console.log(urn, ' on unmounted')
+})
+
+onActivated(() => {
+    console.log(urn, ' on activated')
+})
+
+onDeactivated(() => {
+    console.log(urn, ' on deactivated')
+})
+
 </script>
 
 <template>
@@ -246,7 +292,7 @@ const deletePostResult = useMutation(gql`
             <q-card class="my-card q-mb-sm" :style="qcardStyle">
                 <q-card-section>
                     <q-badge :color="isRunning ? 'green' : 'red'">
-                        (running)
+                        {{ _.truncate(urn, { length: 24 }) }}
                     </q-badge>
                     <q-badge v-if="isMercureEventSourceOpen" color="blue">
                         {{ iri }}
@@ -258,6 +304,11 @@ const deletePostResult = useMutation(gql`
                         {{ iri }}
                     </q-badge>
                     <p>{{ errortag }}</p>
+                </q-card-section>
+                <q-card-section v-if="exts !== undefined">
+                    <p>{{ exts['urn:mercure:updatePostSubscribe'].status }}</p>
+                    <p>{{ _.truncate(exts['urn:mercure:updatePostSubscribe'].subscription, { length: 24 }) }}</p>
+                    <p>{{ _.truncate(exts['urn:mercure:updatePostSubscribe'].lastEventID, { length: 24 }) }}</p>
                 </q-card-section>
                 <q-card-section>
                     <div class="text-h5 q-mt-sm q-mb-xs">

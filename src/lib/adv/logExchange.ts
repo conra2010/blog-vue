@@ -112,11 +112,20 @@ export const logOpsExchange = ({ client, forward }) => {
     }
 }
 
-export const logExchange = (urn: string) => {
+export const logExchange = (urn: string, summary: boolean) => {
+
+    const short = (n: number) => (x: string) => truncate(x, {length:n})
+
+    const s24 = short(24)
+
     return mapExchange({
         onOperation(op) {
             const doc = truncate(op.query.loc?.source.body, {'length':32})
-            console.log('>> OP >> ', urn, '/', op.key, ' ', doc, ' >> ', op)
+            if (summary) {
+                console.log('>> OP >> ', s24(urn), '/', op.key, ' ', op.kind, ' ', doc)
+            } else {
+                console.log('>> OP >> ', s24(urn), '/', op.key, ' ', doc, ' >> ', op)
+            }
 
             // const ax = fromArray([1,2,3])
             // const bx = fromArray([4,5,6])
@@ -128,7 +137,11 @@ export const logExchange = (urn: string) => {
         },
         onResult(rx) {
             const doc = truncate(rx.operation.query.loc?.source.body, {'length':32})
-            console.log('<< RX << ', urn, '/', rx.operation.key, ' ', doc, ' << ', rx)
+            if (summary) {
+                console.log('<< RX << ', s24(urn), '/', rx.operation.key, ' ', rx.operation.kind, ' ', doc)
+            } else {
+                console.log('<< RX << ', urn, '/', rx.operation.key, ' ', doc, ' << ', rx)
+            }
         }
     });
 }

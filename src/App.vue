@@ -54,7 +54,7 @@ const client = new Client({
   url: GRAPHQL_ENTRYPOINT,
   exchanges: [
     //  Google Chrome has urql dev tools, uncomment this to send data to them
-    logExchange('head '),
+    logExchange('head ', true),
     mapExchange({
       onError(error, operation) {
         console.log(`Operation with ${operation.key} failed: `, error)
@@ -62,19 +62,20 @@ const client = new Client({
     }),
     //otherExchange('foo bar'),
     devtoolsExchange,
-    logExchange('cache'),
+    logExchange('cache', true),
     cacheExchange,
     // cacheExchange({}),
-    logExchange('retry'),
+    // logExchange('retry'),
     retryExchange({
       retryIf: (error) => { return true },
       maxNumberAttempts: 3
     }),
-    logExchange('fetch'),
+    logExchange('fetch', true),
     fetchExchange,
     //  see lib/urql.ts
-    logExchange('subs '),
-    subscriptionExchange({ forwardSubscription })
+    logExchange('subs ', true),
+    subscriptionExchange({ forwardSubscription }),
+    logExchange('tail ', true)
   ],
   fetch: (url,opts) => fetchWithTimeout(url,opts,5000)
 });
@@ -109,20 +110,21 @@ watch(isOnline, () => {
         <q-route-tab to="/ordered" label="Posts" />
         <q-route-tab to="/sse" label="SSE" />
         <q-route-tab to="/about" label="About" />
+        <q-route-tab to="/alt" label="Alt" />
       </q-tabs>
     </q-header>
-<!-- 
+
     <q-page-container>
       <router-view v-slot="{ Component }">
         <keep-alive>
           <component :is="Component" :key="$route.fullPath"></component>
         </keep-alive>
       </router-view>
-    </q-page-container> -->
-
+    </q-page-container>
+<!-- 
     <q-page-container>
       <router-view></router-view>
-    </q-page-container>
+    </q-page-container> -->
 
     <q-footer elevated class="bg-grey-8 text-white">
       <q-toolbar>
