@@ -1,7 +1,6 @@
 import { ref, computed, watch, shallowRef, type Ref, reactive, inject } from 'vue'
 import { refDebounced, tryOnScopeDispose, useRefHistory, watchDebounced } from '@vueuse/core'
 import { useEventListener, useWebWorkerFn } from '@vueuse/core'
-import { ReconnectingEventSource } from './recon'
 import { v4 as uuidv4 } from 'uuid'
 
 import { useNetwork, useDateFormat } from '@vueuse/core'
