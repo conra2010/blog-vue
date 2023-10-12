@@ -86,15 +86,6 @@ export interface UseMercureConfiguration {
   retry_baseline_fn?: (n: number) => string
 }
 
-/**
- * Listen to Mercure events
- *
- * @param   {string}                   url            to reach Mercure
- * @param   {UseEventSourceOptions}    options        ???
- * @param   {UseMercureConfiguration}  configuration  timeouts for reconnecting
- *
- * @return  {MercureSource}                           [return description]
- */
 export function useMercure(url: string, options: UseEventSourceOptions = {}, configuration?: UseMercureConfiguration): MercureSource {
   //  data about the event received
   const lastEventID: Ref<string> = ref('')
@@ -128,13 +119,12 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
 
   const s24 = (x: string) => { return _.truncate(x, {length:24}) }
 
-  //  GraphQL subscription urn if available, for logging
+  //  GraphQL 
   const gqlSubscriptionID: Ref<string> = ref('')
 
   //  error
   const error: Ref<Event|null> = ref(null)
 
-  //  keep the last known ID to tell Mercure when reconnecting
   const lastEventIDOnError: Ref<string> = ref('')
 
   const severity: Ref<string> = ref('')
@@ -159,7 +149,6 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   //  network status
   const { isOnline, onlineAt, offlineAt } = useNetwork()
 
-  //  use network status changes to close/reconnect event source
   watchDebounced(isOnline, () => {
     if (!isOnline.value) {
       //  went offline
@@ -202,7 +191,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     return rx
   }
 
-  //  shared parsing for all event types
+  //  shared for all event types
   function pre(e: MessageEvent<any>) {
     //  ?????
     eventType.value = e.type
@@ -284,7 +273,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     }
   }
 
-  //  setup event source listeners when the source changes
+  //  setup event source listeners
   watch(eventSource, () => {
     if (eventSource.value) {
       //  management
