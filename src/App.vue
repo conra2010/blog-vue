@@ -2,41 +2,82 @@
 import { RouterView } from 'vue-router'
 
 import { forwardSubscription } from '@/lib/urql'
+import { fetchExchange, logOpsExchange, retryExchange, logExchange, cacheExchange, otherExchange } from '@/lib/adv'
+// import { cacheExchange } from '@urql/exchange-graphcache'
 
-import { Client, provideClient, cacheExchange, fetchExchange, subscriptionExchange } from '@urql/vue';
+import { Client, mapExchange, provideClient, subscriptionExchange } from '@urql/vue';
 import { devtoolsExchange } from '@urql/devtools'
-import { retryExchange } from '@urql/exchange-retry'
+
 import { GRAPHQL_ENTRYPOINT } from '@/config/api';
 
 import { watch } from 'vue'
 import { useNetwork, useDateFormat, useOnline } from '@vueuse/core'
 
 import { useQuasar } from 'quasar'
+import { useCounterStore } from './stores/counter';
+import { pipe, toObservable } from 'wonka';
+import { valueFromAST } from 'graphql';
+import { signalingExchange } from './lib/adv/logExchange';
+
+const { retry$, nextRetryString } = useCounterStore()
+
+const foo = pipe(retry$, 
+  toObservable)
+
+foo.subscribe({
+  next: (value) => console.log(value),
+  complete: () => {},
+  error: () => {}
+})
 
 const isOnline = useOnline()
+
+async function fetchWithTimeout(
+  url: RequestInfo | URL,
+  opts: RequestInit | undefined,
+  cfg: number
+) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), cfg)
+
+  const response = await fetch(url, {
+    ...opts,
+    signal: controller.signal,
+  })
+
+  clearInterval(timeout)
+  return response
+}
 
 //  create a urql client to execute GraphQL operations
 const client = new Client({
   url: GRAPHQL_ENTRYPOINT,
   exchanges: [
     //  Google Chrome has urql dev tools, uncomment this to send data to them
-    //devtoolsExchange,
-    cacheExchange,
-    retryExchange({
-      retryIf: error => {
-        if (error.graphQLErrors.length > 0) {
-          console.log('retryExchange GraphQL errors')
-        }
-        if (error.networkError) {
-          console.log('retryExchange Network error')
-        }
-        return true
+    logExchange('head ', true),
+    mapExchange({
+      onError(error, operation) {
+        console.log(`Operation with ${operation.key} failed: `, error)
       }
     }),
+    //otherExchange('foo bar'),
+    devtoolsExchange,
+    logExchange('cache', true),
+    cacheExchange,
+    // cacheExchange({}),
+    // logExchange('retry'),
+    retryExchange({
+      retryIf: (error) => { return true },
+      maxNumberAttempts: 3
+    }),
+    logExchange('fetch', true),
     fetchExchange,
     //  see lib/urql.ts
-    subscriptionExchange({ forwardSubscription })
+    logExchange('subs ', true),
+    subscriptionExchange({ forwardSubscription }),
+    logExchange('tail ', true)
   ],
+  fetch: (url,opts) => fetchWithTimeout(url,opts,5000)
 });
 
 provideClient(client);
@@ -69,6 +110,7 @@ watch(isOnline, () => {
         <q-route-tab to="/ordered" label="Posts" />
         <q-route-tab to="/sse" label="SSE" />
         <q-route-tab to="/about" label="About" />
+        <q-route-tab to="/alt" label="Alt" />
       </q-tabs>
     </q-header>
 
@@ -79,6 +121,10 @@ watch(isOnline, () => {
         </keep-alive>
       </router-view>
     </q-page-container>
+<!-- 
+    <q-page-container>
+      <router-view></router-view>
+    </q-page-container> -->
 
     <q-footer elevated class="bg-grey-8 text-white">
       <q-toolbar>

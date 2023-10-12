@@ -21,7 +21,7 @@ export const useMercureDelta = (baseurl: string, options: UseEventSourceOptions 
     //  our precious event source
     const mercure = useMercure(baseurl, options, configuration)
 
-    const { lastEventID, eventType, firstDataField } = toRefs(mercure)
+    const { lastEventID, eventType, firstDataField, error } = toRefs(mercure)
 
     //  and the events we're interested in
     watch(lastEventID, () => {
@@ -35,7 +35,8 @@ export const useMercureDelta = (baseurl: string, options: UseEventSourceOptions 
 
     return {
         inserted, deleted,
-        lastEventID, eventType, firstDataField
+        lastEventID, eventType, firstDataField,
+        error
     }
 }
 

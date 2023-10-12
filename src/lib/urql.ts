@@ -1,13 +1,19 @@
 
-import type { Operation, SubscriptionForwarder, SubscriptionOperation } from '@urql/core'
-import { make, toObservable } from 'wonka';
+import { makeErrorResult, makeResult, mapExchange, type Operation, type SubscriptionForwarder, type SubscriptionOperation } from '@urql/core'
+import { make, onPush, pipe, toObservable, type Source } from 'wonka';
 import { Kind, parse } from 'graphql'
 import type { DocumentNode, FieldNode, OperationDefinitionNode } from 'graphql';
-import type { OperationResult } from '@urql/core';
+import type { Exchange, ExecutionResult, OperationResult } from '@urql/core';
 
 import { useMercure, type MercureSource } from '@/lib/sse'
 import { CADDY_MERCURE_URL, MERCURE_ENTRYPOINT } from '@/config/api';
-import { toRefs, watch } from 'vue';
+import { toRefs, watch, inject } from 'vue';
+import { makeFetchSource } from '@urql/core/internal';
+import mitt, { type Emitter } from 'mitt'
+import type { MercureSourceEvents } from '@/lib/sse';
+import { useSignalsStore } from '@/stores/signals';
+import { v4 as uuidv4 } from 'uuid'
+import * as _ from 'lodash'
 
 // see [urql subscriptions](https://formidable.com/open-source/urql/docs/advanced/subscriptions/)
 //
@@ -41,12 +47,16 @@ const getFieldSelections = (query: DocumentNode): readonly FieldNode[] | null =>
     ) : null;
 };
 
-const createFetchSource = (request: SubscriptionOperation, operation: Operation) => {
-    return make<OperationResult>(({ next, complete }) => {
+const createFetchSource = (request: SubscriptionOperation, operation: Operation): Source<ExecutionResult> => {
+    //  ObservableLike<T> provides subscribe(observer:ObserverLike)
+    //      OberverLike<T> with result, error and completion callbacks
+    return make<ExecutionResult>(({ next, complete }) => {
         const abortController =
             typeof AbortController !== 'undefined'
                 ? new AbortController()
                 : undefined;
+
+        const urn = `src:${uuidv4()}`
 
         //  setup a request to execute the GraphQL Subscription; this
         //  will return the Mercure URL that we need to subscribe to
@@ -79,6 +89,19 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
         executeFetch(request, operation, fetchOptions).then(
             (result) => {
                 if (result !== undefined) {
+                    //  might be an error here
+                    //  
+                    //  result: {errors: Array(n) = [TypeError: Failed to ..., ...]}
+                    if (result.errors?.length > 0) {
+                        next({
+                            data: null,
+                            errors: result.errors,
+                            hasNext: false
+                        })
+                        //complete()
+
+                        return
+                    }
                     //next(result);
 
                     //  name of the subscription to keep it
@@ -95,13 +118,15 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                         //console.log('Mercure Subscription recv URL: ', mercureUrl)
 
                         // TODO: automatically add this to the request set, and strip it in result
-                        if (
-                            process.env.NODE_ENV !== 'production' &&
-                            !mercureUrl
-                        ) {
-                            throw new Error(
-                                'Received a subscription response without mercureUrl. This will just return static data.'
-                            );
+                        if (!mercureUrl) {
+                            next({
+                                data: null,
+                                errors: [new Error('Missing event stream URL in GraphQL response')],
+                                hasNext: false
+                            })
+                            //complete()
+
+                            return
                         }
 
                         //const mercureSubscription = new EventSource(mercureUrl.replace('https://host.docker.internal:8445', MERCURE_ENTRYPOINT), { withCredentials: false });
@@ -113,11 +138,18 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                         //  change the URL Caddy sees to the URL the web app needs
                         const mercure = useMercure(mercureUrl.replace(CADDY_MERCURE_URL, MERCURE_ENTRYPOINT), { withCredentials: false }, {
                             //  reconfigure timeout on error
-                            retry_baseline: 1000, retry_rng_span: 500
+                            retry_baseline_fn(n) {
+                                // return '5s'
+                                const steps = ['250ms', '1s', '1s', '1s', '5s', '20s', '1m', '5m', '20m']
+                                // const steps = ['250ms']
+                                if (n <= steps.length) { return steps[n - 1] }
+                                return 'infinity'
+                            },
+                            retry_rng_span: 500
                         });
 
                         //  we are interested on these
-                        const { lastEventID, eventType, dataFieldsValues } = toRefs(mercure)
+                        const { lastEventID, eventType, dataFieldsValues, urn, gqlSubscriptionID, status, error, severity } = toRefs(mercure)
 
                         watch(lastEventID, () => {
                             //  events of type 'GraphQL Subscription'
@@ -129,23 +161,60 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                                 if (dataFieldsValues.value && dataFieldsValues.value.length > 0) {
                                     const dvalue = dataFieldsValues.value[0]
                                     //  prepare result
-                                    result = {
-                                        ...result,
-                                        data: { ...result.data, [selectionName]: { ...result.data[selectionName], ...dvalue}}
-                                    }
+                                        result = {
+                                            ...result,
+                                            data: { ...result.data, [selectionName]: { ...result.data[selectionName], ...dvalue}},
+                                            extensions: {
+                                                [`urn:mercure:${selectionName}`]: {
+                                                    status:status.value,
+                                                    urn:urn.value,
+                                                    subscription:gqlSubscriptionID.value,
+                                                    lastEventID:lastEventID.value
+                                                }
+                                            }
+                                            // errors: [],
+                                            // hasNext: true
+                                        }
+                                        console.log('subs source <<< ', lastEventID.value, ' ', _.truncate(urn.value,{length:24}))
+
+                                        next(result)
                                     //  notify the subscriber that there's another value (?)
-                                    next(result)
                                 }
                             }
                         })
 
-                        //  keep the subscription
+                        watch(error, () => {
+                            if (severity.value === 'SEVERE') {
+                                next({
+                                    data: null,
+                                    errors: [new Error('GraphQL Subscription event stream irrecuperable error')],
+                                    hasNext: false
+                                })
+                            }
+                        })
+                        
+                        watch(status, () => {
+                            next({
+                                data: null,
+                                extensions: {
+                                    [`urn:mercure:${selectionName}`]: {
+                                        status:status.value,
+                                        urn:urn.value,
+                                        subscription:gqlSubscriptionID.value,
+                                        lastEventID:lastEventID.value
+                                    }
+                                }
+                            })
+                        })
+
+                        //  keep the subscription here
                         subscriptions.push(mercure);
                     });
                 }
             },
             (reason) => {
                 //  TODO error handling, see what urql expects
+                next(makeErrorResult(operation, reason))
                 console.error(reason)
             }
         );

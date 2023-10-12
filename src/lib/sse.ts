@@ -1,10 +1,18 @@
-import { ref, computed, watch, shallowRef, type Ref, reactive, toRefs } from 'vue'
-import { refDebounced, tryOnScopeDispose, watchDebounced } from '@vueuse/core'
+import { ref, computed, watch, shallowRef, type Ref, reactive, inject } from 'vue'
+import { refDebounced, tryOnScopeDispose, useRefHistory, watchDebounced } from '@vueuse/core'
 import { useEventListener, useWebWorkerFn } from '@vueuse/core'
 import { ReconnectingEventSource } from './recon'
 import { v4 as uuidv4 } from 'uuid'
 
 import { useNetwork, useDateFormat } from '@vueuse/core'
+
+import { Duration } from '@icholy/duration'
+
+import * as _ from 'lodash'
+
+export type MercureSourceEvents = {
+  foo: string;
+}
 
 export type UseEventSourceOptions = EventSourceInit
 
@@ -30,7 +38,15 @@ export interface MercureSource {
    */
   firstDataField: any | null;
   /**
-   * The status of the event sourc
+   * This event source ID
+   */
+  urn: string;
+  /**
+   * GraphQL Mercure subscription ID
+   */
+  gqlSubscriptionID: string;
+  /**
+   * The status of the event source
    */
   status: string;
   /**
@@ -43,6 +59,8 @@ export interface MercureSource {
   error: Event | null;
   //  to debug
   lastEventIDOnError: string;
+  //  testing
+  severity: string;
   //  teardown
   close: any;
 }
@@ -51,8 +69,21 @@ export interface UseMercureConfiguration {
   /**
    * will try to reconnect at baseline + rng span
    */
-  retry_baseline?: number;
   retry_rng_span?: number;
+  /**
+   * The 'duration' of the waiting time before the n-th retry
+   * 
+   * With 'infinity' there'll be no more retries. Use 'ms' for
+   * milliseconds, 's' for seconds, etc. See 'Duration'
+   *
+   * Examples:
+   *  ['1s','5s','2m','infinity'] indexed using n
+   * 
+   * @param   {number}  n  number of retry, starts at 1
+   *
+   * @return  {string}     the waiting time as a duration
+   */
+  retry_baseline_fn?: (n: number) => string
 }
 
 /**
@@ -85,8 +116,17 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
 
   const eventSource: Ref<EventSource | null> = ref(null)
 
-  //  urn for logging
-  const urn: string = uuidv4()
+  const status_history = useRefHistory(status, { capacity: 5 })
+
+  watch(status, () => {
+    const hist = status_history.history.value
+    console.log(logid.value, ' status history <<< ', JSON.stringify(status_history.history.value.map((x) => x.snapshot)))
+  })
+  
+  //  urn
+  const urn: string = `sse:${uuidv4()}`
+
+  const s24 = (x: string) => { return _.truncate(x, {length:24}) }
 
   //  GraphQL subscription urn if available, for logging
   const gqlSubscriptionID: Ref<string> = ref('')
@@ -97,12 +137,21 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   //  keep the last known ID to tell Mercure when reconnecting
   const lastEventIDOnError: Ref<string> = ref('')
 
-  //  configuration, timeouts to reconnect
-  const _retry_baseline: number = (configuration?.retry_baseline ?? 6000)
+  const severity: Ref<string> = ref('')
+
+  //  configuration: retry up to # times with waiting times of baseline * fx + rng span
+  function _retry_baseline_default_fn(n: number): string {
+    return 'infinity'
+  }
+
+  const _retry_timeout_fn: (n: number) => string = (configuration?.retry_baseline_fn ?? _retry_baseline_default_fn)
+
   const _retry_rng_span: number = (configuration?.retry_rng_span ?? 3000)
 
   //  reconnect with lastEventID
   let _timer: number;
+
+  let _ntries: number = 0;
 
   //  debugging
   let _lastErrorTimeStamp: number;
@@ -126,7 +175,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   //  logging
   const logid = computed(() => {
     if (gqlSubscriptionID.value !== '') {
-      return urn + ":" + gqlSubscriptionID.value
+      return `${_.truncate(urn,{length:16})} sub:${_.truncate(gqlSubscriptionID.value,{length:16})}`
     } else {
       return urn
     }
@@ -165,7 +214,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     try {
       return [null, JSON.parse(str)]
     } catch (ex) {
-      return [null]
+      return [ex, null]
     }
   }
 
@@ -193,19 +242,46 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     withCredentials = false,
   } = options
 
+  const duration = (spec: string): [any, any] => {
+    try {
+      const dx = new Duration(spec)
+      return [null, dx.milliseconds()]
+    } catch (ex) {
+      return [ex, null]
+    }
+  }
+
   function reconnect() {
 
-    close()
-
+    _ntries++
+  
     // reconnect after random timeout
-    const timeout = Math.round(_retry_baseline + _retry_rng_span * Math.random());
-        
-    _timer = setTimeout(() => {
-      console.log(logid.value, 'Will attempt to reconnect for lastEventID ', (lastEventID.value !== '' ? lastEventID.value : '(undefined)'))
+    const spec = _retry_timeout_fn(_ntries)
+    console.log(logid.value, 'retry # ', _ntries, ' with spec ', spec)
 
-      //  a new event source
-      eventSource.value = new EventSource(reconnectURL(), { withCredentials })
-    }, timeout);
+    if (spec !== 'infinity') {
+      severity.value = 'RETRYING'
+      //  parse duration
+      const [ex, dx] = duration(spec)
+      if (ex) {
+        console.log(logid.value, 'Failed parsing configuration timeout: ', spec)
+        severity.value = 'SEVERE'
+      } else {
+        console.log(logid.value, 'Dx ', dx)
+
+        const timeout = Math.round(dx + _retry_rng_span * Math.random());
+        console.log(logid.value, 'Will reconnect in approx ', new Duration(timeout).toString(), ' for lastEventID ', (lastEventID.value !== '' ? lastEventID.value : '(undefined)'))
+
+        _timer = setTimeout(() => {
+          console.log(logid.value, ' new EventSource ')
+          //  a new event source
+          eventSource.value = new EventSource(reconnectURL(), { withCredentials })
+        }, timeout);
+      }
+    } else {
+      console.log(logid.value, 'Max retries reached with lastEventID ', (lastEventID.value !== '' ? lastEventID.value : '(undefined)'))
+      severity.value = 'SEVERE'
+    }
   }
 
   //  setup event source listeners when the source changes
@@ -215,10 +291,16 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
       eventSource.value.onopen = () => {
         status.value = 'OPEN'
         error.value = null
+        severity.value = ''
 
         //  reference value
         _lastErrorTimeStamp = performance.now()
+
+        //  reset retry count
+        _ntries = 0;
+        console.log(logid.value, 'resets # tries on open')
       }
+
       //  reconnect on error
       eventSource.value.onerror = (e) => {
         //  debugging Mercure disconnects (config option)
@@ -231,8 +313,10 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
         //  reference
         _lastErrorTimeStamp = mark
 
+        //  will try to recover from error
         error.value = e
         lastEventIDOnError.value = lastEventID.value
+        severity.value = 'UNKNOWN'
 
         console.log(logid.value, ' error, closing connection...')
 
@@ -242,6 +326,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
         //  try
         reconnect()
       }
+
       //  generic 'message' type
       eventSource.value.onmessage = (e: MessageEvent) => {
         pre(e)
@@ -272,12 +357,15 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
         pre(e)
         //
         dataFieldsValues.value = jslift(datavals(e))
+
+        console.log(logid.value, ' <<< Mercure <<< ', s24(urn), ' ', lastEventID.value)
       })
     }
   })
   
   //  teardown
   const close = () => {
+    console.log(logid.value, ' <<< closing down >>> ')
     if (eventSource.value) {
       eventSource.value.close()
       eventSource.value = null
@@ -307,6 +395,8 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
         }
       }
       
+      console.log(logid.value, ' new EventSource ')
+      //
       eventSource.value = new EventSource(url, { withCredentials })
     }
     catch (ex) {
@@ -323,12 +413,14 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
     eventType,
     dataFieldsValues,
     firstDataField,
+    urn, gqlSubscriptionID,
     status,
 
     eventSource,
 
     error,
     lastEventIDOnError,
+    severity,
 
     //  teardown
     close

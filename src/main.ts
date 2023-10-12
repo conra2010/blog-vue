@@ -13,7 +13,13 @@ import 'quasar/src/css/index.sass'
 import App from './App.vue'
 import router from './router'
 
+import mitt, { type Emitter } from 'mitt'
+
+import { type MercureSourceEvents } from './lib/sse'
+
 const app = createApp(App)
+
+const emitter: Emitter<MercureSourceEvents> = mitt<MercureSourceEvents>()
 
 app.use(createPinia())
 app.use(router)
@@ -26,5 +32,7 @@ app.use(Quasar, {
         notify: {}
     }
 })
-  
+
+app.provide('emitter', emitter)
+
 app.mount('#app')

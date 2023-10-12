@@ -33,7 +33,24 @@ const errorstr = computed(() => {
 </script>
 
 <template>
+        <!-- 
+
+    <q-badge color="orange" text-color="black" label="2" />
+
+    <q-badge color="purple">
+      <q-icon name="bluetooth" color="white" />
+    </q-badge>
+ -->
+
     <q-card class="top-card">
+        <q-card-section>
+            <q-badge color="blue">
+                {{ status }}
+            </q-badge>
+            <q-badge v-if="status !== 'OPEN'" color="red">
+                12 <q-icon name="warning" color="white" class="q-ml-xs" />
+            </q-badge>
+        </q-card-section>
         <q-card-section>
             <p>last event type: {{ eventType }}</p>
             <p>lastEventID: {{ lastEventID }}</p>

@@ -1,9 +1,26 @@
 <script lang="ts" setup>
-import { computed, ref, toRefs, type Ref } from 'vue';
-import { gql, useMutation, useQuery, useSubscription } from '@urql/vue'
-import { useOnline } from '@vueuse/core';
-
+import { computed, ref, shallowRef, watch, toRefs, type Ref, type ShallowRef, inject, onActivated, onDeactivated } from 'vue';
+import {
+    onBeforeMount, onBeforeUpdate,
+    onMounted,
+    onBeforeUnmount, onUnmounted } from 'vue';
+import { gql, useMutation, useQuery, useSubscription, type SubscriptionHandler } from '@urql/vue'
+import { reactiveComputed, refDebounced, useOnline } from '@vueuse/core';
+import PostSummaryDebounce from './PostSummaryDebounce.vue';
 import FieldChangeTracker from './FieldChangeTracker.vue';
+import { useQuasar } from 'quasar';
+import { v4 as uuidv4 } from 'uuid'
+
+import QCardInlineNotification from './QCardInlineNotification.vue';
+
+import { useSignalsStore } from '@/stores/signals';
+
+import mitt, { type Emitter } from 'mitt'
+import { type MercureSourceEvents } from '@/lib/sse'
+import { fasLinesLeaning } from '@quasar/extras/fontawesome-v6';
+import { assertWrappingType } from 'graphql';
+
+import * as _ from 'lodash'
 
 //  component receives the Post IRI as prop
 const props = defineProps<{
@@ -14,7 +31,36 @@ const props = defineProps<{
 
 const { iri, rmref, insref } = toRefs(props)
 
+const $q = useQuasar()
+
+//  urn
+const urn: string = `vue:${uuidv4()}`
+
 const isOnline = useOnline()
+
+const isRunning = ref(true)
+
+const errorref: Ref<any | undefined> = ref(undefined)
+
+const errortag: Ref<string | undefined> = ref('')
+
+const {emitter} = useSignalsStore()
+//: Emitter<MercureSourceEvents> | undefined = inject('emitter')
+    //mitt<MercureSourceEvents>()
+
+emitter?.on('foo', (e) => {
+    console.log(e)
+})
+
+interface Signal {
+    key: number;
+    isRunning: ShallowRef<boolean>;
+}
+
+interface FieldChangeTracking<T> {
+    og: Ref<T>;
+    uv: Ref<T>;
+}
 
 //  graphql query for details 
 const detailsQuery = useQuery({
@@ -32,6 +78,13 @@ const detailsQuery = useQuery({
     variables: { id: iri }
 })
 
+watch(detailsQuery.error, () => {
+  $q.notify({message:'Error : GraphQL : urn:5c6b64f2',type:'error'})
+  isRunning.value = false
+  errorref.value = detailsQuery.error
+  errortag.value = 'PostSummary:PostDetails'
+})
+
 //  convenient access to post details
 const details = computed(() => {
     //  loading... ?
@@ -41,14 +94,36 @@ const details = computed(() => {
 })
 
 //  graphql subscription optional handler function to process received data
+const isMercureEventSourceOpen = ref(true)
+
+const handler: SubscriptionHandler<any, any> = (prev: any, data: any): any => {
+    if (data) {
+        if (data.updatePostSubscribe) {
+            console.log(urn, ' handler/data')
+            _.assign(detailsQuery.data.value.post, data.updatePostSubscribe.post)
+            //detailsQuery.data.value.post = data.updatePostSubscribe.post || detailsQuery.data.value.post
+        }
+        if (data.extensions) {
+            console.log(urn, ' handler/extensions')
+        }
+    }
+    return data
+}
+
 const handleSubscription = (messages = [], response) => {
     //  TODO
-
-        detailsQuery.data.value.post.stars = response.updatePostSubscribe.post.stars
-        detailsQuery.data.value.post.author = response.updatePostSubscribe.post.author
-        detailsQuery.data.value.post.title = response.updatePostSubscribe.post.title
-
-    return [response.updatePostSubscribe.post, ...messages]
+    if (response) {
+        if (response.updatePostSubscribe) {
+            detailsQuery.data.value.post.stars = response.updatePostSubscribe.post.stars
+            detailsQuery.data.value.post.author = response.updatePostSubscribe.post.author
+            detailsQuery.data.value.post.title = response.updatePostSubscribe.post.title
+            return [response.updatePostSubscribe.post, ...messages]
+        }
+        if (response.updatePostSubscribe_MercureSourceTracing) {
+            isMercureEventSourceOpen.value = (response.updatePostSubscribe_MercureSourceTracing.status === 'OPEN')
+        }
+    }
+    return messages
 }
 
 //  subscription, we only care about the 'stars' field
@@ -57,23 +132,45 @@ const handleSubscription = (messages = [], response) => {
 //  topic with not only the selection fields, but including the given resource
 //  ID!; so we'll get notified only about that particular resource
 //
+const { signal } = useSignalsStore()
+
 const fastTrackingFieldsSubscription = useSubscription({
     query: gql`
-    subscription FastTrackingSubscription ($iriv: ID!) {
-      updatePostSubscribe (input: {id: $iriv, clientSubscriptionId: "urn:blog-vue:deefbf60"}) {
-        post {
-            title
-            author
-            stars
+        subscription FastTrackingSubscription ($iriv: ID!, $csid: String!) {
+            updatePostSubscribe (input: {id: $iriv, clientSubscriptionId: $csid}) {
+                post {
+                    title
+                    author
+                    stars
+                }
+                mercureUrl
+                clientSubscriptionId
+            }
         }
-        mercureUrl
-        clientSubscriptionId
-      }
+    `,
+    variables: { iriv: iri, csid: urn }
+}, handler)
+
+const exts: Ref<Record<string,any> | undefined> = ref(undefined)
+
+watch(fastTrackingFieldsSubscription.extensions, () => {
+
+    exts.value = fastTrackingFieldsSubscription.extensions?.value
+
+    const ext = fastTrackingFieldsSubscription.extensions?.value
+    if (ext && ext['urn:mercure:updatePostSubscribe']) {
+        isMercureEventSourceOpen.value = (ext['urn:mercure:updatePostSubscribe']['status'] === 'OPEN')
+        console.log(urn, ' ', ext['urn:mercure:updatePostSubscribe'])
     }
-  `, variables: { iriv: iri },
-}, handleSubscription)
+    // console.log('fts ext: ', exts.value)
+})
 
-
+watch(fastTrackingFieldsSubscription.error, () => {
+    console.log('fts error ref: ', fastTrackingFieldsSubscription.error)
+    $q.notify({message:'Error : GraphQL : urn:a835c5d6',type:'error'})
+    isRunning.value = false
+    errorref.value = fastTrackingFieldsSubscription.error
+})
 
 //  exec graphql mutation to 'give a like' to this resource
 function pushChanges(count: number) {
@@ -127,14 +224,14 @@ const isDeletedResource = computed(() => {
     return (rmref?.value?.has(iri.value))
 })
 
-const updatePostTitle = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
+const updatePostTitle = gql`mutation UpdatePostTitle($id:ID!,$fvalue:String!) {
     updatePost (input:{id:$id,clientMutationId:"urn:blog-vue:64a8ff25",title:$fvalue}) {
         clientMutationId
     }
 }`
 
 
-const updatePostAuthor = gql`mutation UpdatePost($id:ID!,$fvalue:String!) {
+const updatePostAuthor = gql`mutation UpdatePostAuthor($id:ID!,$fvalue:String!) {
     updatePost (input:{id:$id,clientMutationId:"urn:blog-vue:25cda677",author:$fvalue}) {
         clientMutationId
     }
@@ -146,42 +243,106 @@ function deletePost() {
     })
 }
 
+//  post { id } selection forces __typename field in result and urql cache 
+//  invalidation; to avoid stale values on Post queries
 const deletePostResult = useMutation(gql`
     mutation DeletePost ($id: ID!) {
         deletePost (input: { id: $id, clientMutationId: "urn:blog-vue:a68fc51b" }) {
+            post {
+                id
+            }
             clientMutationId
         }
     }
 `)
 
+onBeforeMount(() => {
+    console.log(urn, ' on before mount')
+})
+
+onMounted(() => {
+    console.log(urn, ' on mounted')
+})
+
+onBeforeUpdate(() => {
+    console.log(urn, ' on before update')
+})
+
+onBeforeUnmount(() => {
+    console.log(urn, ' on before unmount')
+})
+
+onUnmounted(() => {
+    console.log(urn, ' on unmounted')
+})
+
+onActivated(() => {
+    console.log(urn, ' on activated')
+})
+
+onDeactivated(() => {
+    console.log(urn, ' on deactivated')
+})
+
 </script>
 
 <template>
-    <div v-if="details">
-        <!-- <p>{{ titleRef }}</p> -->
-        <q-card class="my-card q-mb-sm" :style="qcardStyle">
-            <q-card-section>
-                <div class="text-h5 q-mt-sm q-mb-xs">
-                    <FieldChangeTracker label="Title" :iri="iri" :og="details.title" :mut="updatePostTitle"/>
-                    <FieldChangeTracker label="Author" :iri="iri" :og="details.author" :mut="updatePostAuthor"/>
-                    <!-- <q-input v-model="details.title" filled label="Title" />
-                    <q-btn flat color="secondary" label="Save" @click="updateTitle" />
-                    <q-input v-model="details.author" filled label="Author" />
-                    <q-btn flat color="secondary" label="Save" @click="updateAuthor(details.author)" /> -->
-                </div>
-                <div class="col-auto text-caption q-pt-md row no-wrap items-center">
-                    <q-icon name="warning" />{{ details.id }}
-                    <q-icon name="clock" />{{ details.version }}
-                    <q-icon name="star" />{{ details.stars }}
-                </div>
-            </q-card-section>
-            <q-card-actions>
-                <q-btn flat :disable="isDeletedResource||(!isOnline)" color="primary" label="Delete" @click="deletePost" />
-                
-                <q-btn flat :disable="isDeletedResource||(!isOnline)" color="primary" label="Like" @click="pushChanges(details.stars + 1)" />
-
-            </q-card-actions>
-        </q-card>
+    <div>
+        <div v-if="details">
+            <q-card class="my-card q-mb-sm" :style="qcardStyle">
+                <q-card-section>
+                    <div class="text-caption">Vue Component
+                        <q-badge :color="isRunning ? 'green' : 'red'">
+                            {{ _.truncate(urn, { length: 24 }) }}
+                        </q-badge>
+                    </div>
+                    <div class="text-caption">Resource ID
+                        <q-badge v-if="isMercureEventSourceOpen" color="blue">
+                            {{ iri }}
+                        </q-badge>
+                    </div>
+                </q-card-section>
+                <q-card-section v-if="exts !== undefined">
+                    <div class="text-caption">Event Source Status
+                        <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
+                            {{ exts['urn:mercure:updatePostSubscribe'].status }}
+                        </q-badge>
+                    </div>
+                    <div class="text-caption">Source ID
+                        <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
+                            {{ _.truncate(exts['urn:mercure:updatePostSubscribe'].urn, { length: 24 }) }}
+                        </q-badge>
+                    </div>
+                    <div class="text-caption">Subs
+                        <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
+                            subs:{{ _.truncate(exts['urn:mercure:updatePostSubscribe'].subscription, { length: 24 }) }}
+                        </q-badge>
+                    </div>
+                    <div class="text-caption">Last Event ID
+                        <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
+                            {{ _.truncate(exts['urn:mercure:updatePostSubscribe'].lastEventID, { length: 24 }) }}
+                        </q-badge>
+                    </div>
+                </q-card-section>
+                <q-card-section v-else>
+                    <div class="text-caption">No GraphQL Extension Info</div>
+                </q-card-section>
+                <q-card-section>
+                    <div class="text-h5 q-mt-sm q-mb-xs">
+                        <FieldChangeTracker label="Title" :iri="iri" :og="details.title" :mut="updatePostTitle"/>
+                        <FieldChangeTracker label="Author" :iri="iri" :og="details.author" :mut="updatePostAuthor"/>
+                    </div>
+                    <div class="col-auto text-caption q-pt-md row no-wrap items-center">
+                        <q-icon name="clock" />{{ details.version }}
+                        <q-icon name="star" />{{ details.stars }}
+                    </div>
+                </q-card-section>
+                <q-card-actions>
+                        <q-btn flat :disable="isDeletedResource||(!isOnline)" color="primary" label="Delete" @click="deletePost" />
+                        <q-btn flat :disable="isDeletedResource||(!isOnline)" color="primary" label="Like" @click="pushChanges(details.stars + 1)" />
+                </q-card-actions>
+            </q-card>
+        </div>
     </div>
 </template>
 
