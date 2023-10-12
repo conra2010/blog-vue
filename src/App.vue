@@ -10,14 +10,14 @@ import { devtoolsExchange } from '@urql/devtools'
 
 import { GRAPHQL_ENTRYPOINT } from '@/config/api';
 
-import { watch } from 'vue'
-import { useNetwork, useDateFormat, useOnline } from '@vueuse/core'
+import { ref, watch } from 'vue'
+import { useNetwork, useDateFormat, useOnline, useEventBus, useTimeout } from '@vueuse/core'
 
 import { useQuasar } from 'quasar'
 import { useCounterStore } from './stores/counter';
 import { pipe, toObservable } from 'wonka';
 import { valueFromAST } from 'graphql';
-import { signalingExchange } from './lib/adv/logExchange';
+import { netExchange, signalingExchange } from './lib/adv/logExchange';
 
 const { retry$, nextRetryString } = useCounterStore()
 
@@ -54,6 +54,7 @@ const client = new Client({
   url: GRAPHQL_ENTRYPOINT,
   exchanges: [
     //  Google Chrome has urql dev tools, uncomment this to send data to them
+    netExchange('head'),
     logExchange('head ', true),
     mapExchange({
       onError(error, operation) {
@@ -65,11 +66,12 @@ const client = new Client({
     logExchange('cache', true),
     cacheExchange,
     // cacheExchange({}),
-    // logExchange('retry'),
+    logExchange('retry', true),
     retryExchange({
       retryIf: (error) => { return true },
       maxNumberAttempts: 3
     }),
+    netExchange('fetch', { opf: (op) => { return (op.kind === 'query') } }),
     logExchange('fetch', true),
     fetchExchange,
     //  see lib/urql.ts
@@ -92,6 +94,35 @@ watch(isOnline, () => {
     $q.notify({message:'You seem to be offline',type:'warning'})
   }
 })
+
+const hbus = useEventBus<boolean>('head')
+const fbus = useEventBus<boolean>('fetch')
+
+const tick: number = 250
+const { ready: op, start: oprx } = useTimeout(tick, { controls: true })
+const { ready: rx, start: rxrx } = useTimeout(tick, { controls: true })
+const { ready: fx, start: fxrx } = useTimeout(tick, { controls: true })
+
+function hlistener(event: boolean) {
+  if (event) {
+    // console.log('[[ OP ]]')
+    oprx()
+  } else {
+    // console.log('[[ RX ]]')
+    rxrx()
+  }
+}
+
+function flistener(event: boolean) {
+  if (event) {
+    // console.log('[[ FX ]]')
+    fxrx()
+  }
+}
+
+const hsub = hbus.on(hlistener)
+const fsub = fbus.on(flistener)
+
 </script>
 
 <template>
@@ -129,6 +160,9 @@ watch(isOnline, () => {
     <q-footer elevated class="bg-grey-8 text-white">
       <q-toolbar>
           <q-btn flat disable :label="isOnline ? 'online' : 'offline'" />
+          <q-badge :color="!op ? 'orange' : 'gray'">OP</q-badge>
+          <q-badge :color="!rx ? 'orange' : 'gray'">RX</q-badge>
+          <q-badge :color="!fx ? 'orange' : 'gray'">FX</q-badge>
       </q-toolbar>
     </q-footer>
 

@@ -1,8 +1,9 @@
 import { useSignalsStore } from '@/stores/signals';
-import { mapExchange, type Exchange, type Operation } from '@urql/core'
+import { mapExchange, type Exchange, type Operation, type OperationResult } from '@urql/core'
 import { shallowRef, toRefs, type ShallowRef } from 'vue';
 import { fromArray, merge, pipe, map, filter, subscribe, makeSubject } from 'wonka';
 import { truncate } from 'lodash'
+import { useEventBus } from '@vueuse/core';
 
 export const nopExchange = ({ client, forward }) => {
     //  ExchangeIO function
@@ -146,3 +147,23 @@ export const logExchange = (urn: string, summary: boolean) => {
     });
 }
 
+export type NetExchangeOptions = {
+    opf?: (op: Operation) => boolean;
+    rxf?: (rx: OperationResult) => boolean;
+}
+
+export const netExchange = (urn: string, options?: NetExchangeOptions) => {
+
+    const bus = useEventBus<boolean>(urn)
+
+    return mapExchange({
+        onOperation(op) {
+            if (options?.opf === undefined) { bus.emit(true) }
+            if (options?.opf !== undefined && options?.opf(op)) { bus.emit(true) }
+        },
+        onResult(rx) {
+            if (options?.rxf === undefined) { bus.emit(false)}
+            if (options?.rxf !== undefined && options?.rxf(rx)) { bus.emit(false) }
+        }
+    });
+}

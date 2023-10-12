@@ -40,6 +40,8 @@ const isOnline = useOnline()
 
 const isRunning = ref(true)
 
+const isLoading = ref(true)
+
 const errorref: Ref<any | undefined> = ref(undefined)
 
 const errortag: Ref<string | undefined> = ref('')
@@ -76,6 +78,10 @@ const detailsQuery = useQuery({
     }
   `,
     variables: { id: iri }
+})
+
+watch(detailsQuery.fetching, () => {
+    isLoading.value = detailsQuery.fetching.value
 })
 
 watch(detailsQuery.error, () => {
@@ -288,61 +294,71 @@ onDeactivated(() => {
 
 <template>
     <div>
-        <div v-if="details">
-            <q-card class="my-card q-mb-sm" :style="qcardStyle">
-                <q-card-section>
-                    <div class="text-caption">Vue Component
-                        <q-badge :color="isRunning ? 'green' : 'red'">
-                            {{ _.truncate(urn, { length: 24 }) }}
-                        </q-badge>
+        <q-card class="my-card q-mb-sm" :style="qcardStyle">
+            <q-card-section>
+                <div class="text-caption">Vue Component
+                    <q-badge :color="isRunning ? 'green' : 'red'">
+                        {{ _.truncate(urn, { length: 24 }) }}
+                    </q-badge>
+                </div>
+                <div class="text-caption">Resource ID
+                    <q-badge v-if="isMercureEventSourceOpen" color="blue">
+                        {{ iri }}
+                    </q-badge>
+                </div>
+            </q-card-section>
+            <q-card-section v-if="exts !== undefined">
+                <div class="text-caption">Event Source Status
+                    <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
+                        {{ exts['urn:mercure:updatePostSubscribe'].status }}
+                    </q-badge>
+                </div>
+                <div class="text-caption">Source ID
+                    <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
+                        {{ _.truncate(exts['urn:mercure:updatePostSubscribe'].urn, { length: 24 }) }}
+                    </q-badge>
+                </div>
+                <div class="text-caption">Subs
+                    <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
+                        subs:{{ _.truncate(exts['urn:mercure:updatePostSubscribe'].subscription, { length: 24 }) }}
+                    </q-badge>
+                </div>
+                <div class="text-caption">Last Event ID
+                    <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
+                        {{ _.truncate(exts['urn:mercure:updatePostSubscribe'].lastEventID, { length: 24 }) }}
+                    </q-badge>
+                </div>
+            </q-card-section>
+        </q-card>
+        <q-card class="my-card q-mb-sm" :style="qcardStyle">
+            <q-card-section>
+                <transition
+                    appear
+                    enter-active-class="animated fadeIn"
+                    leave-active-class="animated fadeOut"
+                    >
+                    <div v-if="details">
+                        <q-card-section>
+                            <div class="text-h5 q-mt-sm q-mb-xs">
+                                <FieldChangeTracker label="Title" :iri="iri" :og="details.title" :mut="updatePostTitle"/>
+                                <FieldChangeTracker label="Author" :iri="iri" :og="details.author" :mut="updatePostAuthor"/>
+                            </div>
+                            <div class="col-auto text-caption q-pt-md row no-wrap items-center">
+                                <q-icon name="clock" />{{ details.version }}
+                                <q-icon name="star" />{{ details.stars }}
+                            </div>
+                        </q-card-section>
+                        <q-card-actions>
+                            <q-btn flat :disable="isDeletedResource||(!isOnline)" color="primary" label="Delete" @click="deletePost" />
+                            <q-btn flat :disable="isDeletedResource||(!isOnline)" color="primary" label="Like" @click="pushChanges(details.stars + 1)" />
+                        </q-card-actions>
                     </div>
-                    <div class="text-caption">Resource ID
-                        <q-badge v-if="isMercureEventSourceOpen" color="blue">
-                            {{ iri }}
-                        </q-badge>
-                    </div>
-                </q-card-section>
-                <q-card-section v-if="exts !== undefined">
-                    <div class="text-caption">Event Source Status
-                        <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
-                            {{ exts['urn:mercure:updatePostSubscribe'].status }}
-                        </q-badge>
-                    </div>
-                    <div class="text-caption">Source ID
-                        <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
-                            {{ _.truncate(exts['urn:mercure:updatePostSubscribe'].urn, { length: 24 }) }}
-                        </q-badge>
-                    </div>
-                    <div class="text-caption">Subs
-                        <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
-                            subs:{{ _.truncate(exts['urn:mercure:updatePostSubscribe'].subscription, { length: 24 }) }}
-                        </q-badge>
-                    </div>
-                    <div class="text-caption">Last Event ID
-                        <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
-                            {{ _.truncate(exts['urn:mercure:updatePostSubscribe'].lastEventID, { length: 24 }) }}
-                        </q-badge>
-                    </div>
-                </q-card-section>
-                <q-card-section v-else>
-                    <div class="text-caption">No GraphQL Extension Info</div>
-                </q-card-section>
-                <q-card-section>
-                    <div class="text-h5 q-mt-sm q-mb-xs">
-                        <FieldChangeTracker label="Title" :iri="iri" :og="details.title" :mut="updatePostTitle"/>
-                        <FieldChangeTracker label="Author" :iri="iri" :og="details.author" :mut="updatePostAuthor"/>
-                    </div>
-                    <div class="col-auto text-caption q-pt-md row no-wrap items-center">
-                        <q-icon name="clock" />{{ details.version }}
-                        <q-icon name="star" />{{ details.stars }}
-                    </div>
-                </q-card-section>
-                <q-card-actions>
-                        <q-btn flat :disable="isDeletedResource||(!isOnline)" color="primary" label="Delete" @click="deletePost" />
-                        <q-btn flat :disable="isDeletedResource||(!isOnline)" color="primary" label="Like" @click="pushChanges(details.stars + 1)" />
-                </q-card-actions>
-            </q-card>
-        </div>
+                </transition>
+            </q-card-section>
+            <q-inner-loading :showing="detailsQuery.fetching.value">
+                <q-spinner-gears size="50px" dark color="primary" />
+            </q-inner-loading>
+        </q-card>
     </div>
 </template>
 
