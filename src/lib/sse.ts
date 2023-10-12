@@ -38,7 +38,7 @@ export interface MercureSource {
    */
   firstDataField: any | null;
   /**
-   * urn
+   * This event source ID
    */
   urn: string;
   /**
@@ -46,7 +46,7 @@ export interface MercureSource {
    */
   gqlSubscriptionID: string;
   /**
-   * The status of the event sourc
+   * The status of the event source
    */
   status: string;
   /**
@@ -70,7 +70,19 @@ export interface UseMercureConfiguration {
    * will try to reconnect at baseline + rng span
    */
   retry_rng_span?: number;
-
+  /**
+   * The 'duration' of the waiting time before the n-th retry
+   * 
+   * With 'infinity' there'll be no more retries. Use 'ms' for
+   * milliseconds, 's' for seconds, etc. See 'Duration'
+   *
+   * Examples:
+   *  ['1s','5s','2m','infinity'] indexed using n
+   * 
+   * @param   {number}  n  number of retry, starts at 1
+   *
+   * @return  {string}     the waiting time as a duration
+   */
   retry_baseline_fn?: (n: number) => string
 }
 
@@ -234,11 +246,11 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
   
     // reconnect after random timeout
     const spec = _retry_timeout_fn(_ntries)
-    
     console.log(logid.value, 'retry # ', _ntries, ' with spec ', spec)
+
     if (spec !== 'infinity') {
       severity.value = 'RETRYING'
-
+      //  parse duration
       const [ex, dx] = duration(spec)
       if (ex) {
         console.log(logid.value, 'Failed parsing configuration timeout: ', spec)
@@ -247,7 +259,6 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
         console.log(logid.value, 'Dx ', dx)
 
         const timeout = Math.round(dx + _retry_rng_span * Math.random());
-          
         console.log(logid.value, 'Will reconnect in approx ', new Duration(timeout).toString(), ' for lastEventID ', (lastEventID.value !== '' ? lastEventID.value : '(undefined)'))
 
         _timer = setTimeout(() => {
