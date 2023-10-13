@@ -5,7 +5,8 @@ pnpm install
 
 Once the API Platform is running, review the API URLs configured in this project:
 ```shell
-src/config/api.ts
+cp .env .env.local
+cat .env.local
 ```
 Compile and Hot-Reload for Development:
 ```sh
@@ -32,7 +33,7 @@ The _template_ renders details and some buttons to test the GraphQL mutations. I
 # SSE
 A debug component to show events coming in from Mercure, listens to the topic about Posts, any ID:
 ```shell
-https://caddy.api-platform/posts/{id}
+http://{$SERVER_NAME}/posts/{id}
 ```
 ## Events
 To receive some events, use the GraphQL Playground to execute operations; notice the event type is included in the message, if the modified API Platform is used.
@@ -76,18 +77,8 @@ mutation {
 ## Disconnects
 When an event source gets disconnected, we try to reconnect with the last known event ID. Mercure seems to send the events we've missed.
 
-Move into the API Platform project and setup some variables to send updates using the shell (see the API Platform project):
-```shell (fish)
-set CA_BUNDLE (pwd)/api/docker/ca/ca-bundle.crt
-set AP_ENTRYPOINT https://caddy.api-platform.orb.local
-set MERCURE_ENTRYPOINT https://caddy.api-platform.orb.local
-set MERCURE_TOPICS_PREFIX https://caddy.api-platform.orb.local
-open $MERCURE_ENTRYPOINT/.well-known/mercure/ui/#discover
-```
-Copy the JWT token and save it into another variable:
-```shell (fish)
-set JWT_TOKEN (pbpaste)
-```
+Move into the API Platform project and *setup some variables* to send updates using the shell (see the API Platform project).
+
 Now start publishing fake updates to the topic:
 ```shell
 seq 1000 | while read line; \
@@ -97,7 +88,7 @@ seq 1000 | while read line; \
     # data to send to Mercure
     set DTA '{"SEQ":"'$line'","ts":"'$TS'"}'; \
     # POST it to the topic
-    set RESPONSE (http --verify $CA_BUNDLE -b --ignore-stdin -f POST \
+    set RESPONSE (http -b --ignore-stdin -f POST \
 	    {$MERCURE_ENTRYPOINT}/.well-known/mercure \
 	    topic={$MERCURE_TOPICS_PREFIX}'/posts/1' \
 	    data=$DTA \
@@ -109,5 +100,5 @@ seq 1000 | while read line; \
     sleep 5; \
 end
 ```
-Notice we are using a type of 'message', just to show that the Chrome Network inspector only shows the event stream for events of that type.
+
 After some events are received, we go offline by changing "No throttling" to "Offline". The event source should detect that and close the connection; go back to "No throttling" and after a few seconds the event source should try to reconnect and tell Mercure the ID of the last event received.
