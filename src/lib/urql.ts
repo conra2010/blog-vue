@@ -140,7 +140,7 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                             //  reconfigure timeout on error
                             retry_baseline_fn(n) {
                                 // return '5s'
-                                const steps = ['250ms', '1s', '1s', '1s', '5s', '20s', '1m', '5m', '20m']
+                                const steps = ['250ms', '1s', '1s', '1s', '5s']
                                 // const steps = ['250ms']
                                 if (n <= steps.length) { return steps[n - 1] }
                                 return 'infinity'
