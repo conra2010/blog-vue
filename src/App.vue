@@ -18,6 +18,7 @@ import { useCounterStore } from './stores/counter';
 import { pipe, toObservable } from 'wonka';
 import { valueFromAST } from 'graphql';
 import { netExchange, signalingExchange } from './lib/adv/logExchange';
+import { tiReload } from '@quasar/extras/themify';
 
 const { retry$, nextRetryString } = useCounterStore()
 
@@ -123,6 +124,10 @@ function flistener(event: boolean) {
 const hsub = hbus.on(hlistener)
 const fsub = fbus.on(flistener)
 
+function handleReload() {
+  location.reload()
+}
+
 </script>
 
 <template>
@@ -163,6 +168,7 @@ const fsub = fbus.on(flistener)
           <q-badge :color="!op ? 'orange' : 'gray'">OP</q-badge>
           <q-badge :color="!rx ? 'orange' : 'gray'">RX</q-badge>
           <q-badge :color="!fx ? 'orange' : 'gray'">FX</q-badge>
+          <q-btn flat round icon="refresh" color="secondary" @click="handleReload"/>
       </q-toolbar>
     </q-footer>
 
