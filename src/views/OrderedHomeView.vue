@@ -1,5 +1,4 @@
 <template>
-  {{ isOnline }}
   <div v-if="iris">
     <q-virtual-scroll
       virtualScrollSliceSize="8"

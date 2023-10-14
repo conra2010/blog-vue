@@ -5,20 +5,10 @@ import {
     onMounted,
     onBeforeUnmount, onUnmounted } from 'vue';
 import { gql, useMutation, useQuery, useSubscription, type SubscriptionHandler } from '@urql/vue'
-import { reactiveComputed, refDebounced, useOnline } from '@vueuse/core';
-import PostSummaryDebounce from './PostSummaryDebounce.vue';
+import { useOnline } from '@vueuse/core';
 import FieldChangeTracker from './FieldChangeTracker.vue';
 import { useQuasar } from 'quasar';
 import { v4 as uuidv4 } from 'uuid'
-
-import QCardInlineNotification from './QCardInlineNotification.vue';
-
-import { useSignalsStore } from '@/stores/signals';
-
-import mitt, { type Emitter } from 'mitt'
-import { type MercureSourceEvents } from '@/lib/sse'
-import { fasLinesLeaning } from '@quasar/extras/fontawesome-v6';
-import { assertWrappingType } from 'graphql';
 
 import * as _ from 'lodash'
 
@@ -26,7 +16,7 @@ import * as _ from 'lodash'
 const props = defineProps<{
     iri: string,
     rmref?: Set<string>,
-        insref?: Set<string>,
+    insref?: Set<string>,
 }>()
 
 const { iri, rmref, insref } = toRefs(props)
@@ -45,24 +35,6 @@ const isLoading = ref(true)
 const errorref: Ref<any | undefined> = ref(undefined)
 
 const errortag: Ref<string | undefined> = ref('')
-
-const {emitter} = useSignalsStore()
-//: Emitter<MercureSourceEvents> | undefined = inject('emitter')
-    //mitt<MercureSourceEvents>()
-
-emitter?.on('foo', (e) => {
-    console.log(e)
-})
-
-interface Signal {
-    key: number;
-    isRunning: ShallowRef<boolean>;
-}
-
-interface FieldChangeTracking<T> {
-    og: Ref<T>;
-    uv: Ref<T>;
-}
 
 //  graphql query for details 
 const detailsQuery = useQuery({
@@ -116,30 +88,12 @@ const handler: SubscriptionHandler<any, any> = (prev: any, data: any): any => {
     return data
 }
 
-const handleSubscription = (messages = [], response) => {
-    //  TODO
-    if (response) {
-        if (response.updatePostSubscribe) {
-            detailsQuery.data.value.post.stars = response.updatePostSubscribe.post.stars
-            detailsQuery.data.value.post.author = response.updatePostSubscribe.post.author
-            detailsQuery.data.value.post.title = response.updatePostSubscribe.post.title
-            return [response.updatePostSubscribe.post, ...messages]
-        }
-        if (response.updatePostSubscribe_MercureSourceTracing) {
-            isMercureEventSourceOpen.value = (response.updatePostSubscribe_MercureSourceTracing.status === 'OPEN')
-        }
-    }
-    return messages
-}
-
 //  subscription, we only care about the 'stars' field
 //
 //  this uses a modified API Platform/Mercure that computes the subscription
 //  topic with not only the selection fields, but including the given resource
 //  ID!; so we'll get notified only about that particular resource
 //
-const { signal } = useSignalsStore()
-
 const fastTrackingFieldsSubscription = useSubscription({
     query: gql`
         subscription FastTrackingSubscription ($iriv: ID!, $csid: String!) {
@@ -296,12 +250,12 @@ onDeactivated(() => {
     <div>
         <q-card class="my-card q-mb-sm" :style="qcardStyle">
             <q-card-section>
-                <div class="text-caption">Vue Component
+                <div class="text-caption">Vue Component ID
                     <q-badge :color="isRunning ? 'green' : 'red'">
                         {{ _.truncate(urn, { length: 24 }) }}
                     </q-badge>
                 </div>
-                <div class="text-caption">Resource ID
+                <div class="text-caption">Resource IRI
                     <q-badge v-if="isMercureEventSourceOpen" color="blue">
                         {{ iri }}
                     </q-badge>
@@ -318,7 +272,7 @@ onDeactivated(() => {
                         {{ _.truncate(exts['urn:mercure:updatePostSubscribe'].urn, { length: 24 }) }}
                     </q-badge>
                 </div>
-                <div class="text-caption">Subs
+                <div class="text-caption">GraphQL Subscription ID
                     <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
                         subs:{{ _.truncate(exts['urn:mercure:updatePostSubscribe'].subscription, { length: 24 }) }}
                     </q-badge>

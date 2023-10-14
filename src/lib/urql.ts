@@ -17,11 +17,8 @@ import * as _ from 'lodash'
 
 // see [urql subscriptions](https://formidable.com/open-source/urql/docs/advanced/subscriptions/)
 //
-// the urql client will use this to construct an actual 'exchange' when a graphql subscription
-// is executed; given a GraphQL request body, it must return something that conforms to the
-// 'observable spec', an object with a 'subscribe()' method accepting an observer.
 //
-// this implementation is taken from (...); it uses the Wonka library
+// this implementation is taken from (...); it uses the Wonka library (as does urql)
 //
 // "Wonka is a lightweight iterable and observable library loosely based on the callbag spec. It
 // exposes a set of helpers to create streams, which are sources of multiple values, which allow you
@@ -48,17 +45,20 @@ const getFieldSelections = (query: DocumentNode): readonly FieldNode[] | null =>
 };
 
 const createFetchSource = (request: SubscriptionOperation, operation: Operation): Source<ExecutionResult> => {
-    //  ObservableLike<T> provides subscribe(observer:ObserverLike)
-    //      OberverLike<T> with result, error and completion callbacks
-    return make<ExecutionResult>(({ next, complete }) => {
+    //  will eventually receive a subscriber with a 'next' function to pass results into
+    //  and should then return a 'teardown' function to end the subscription
+    //
+    const results$ = make<ExecutionResult>(({ next, complete }) => {
+        //  for the teardown
         const abortController =
             typeof AbortController !== 'undefined'
                 ? new AbortController()
                 : undefined;
 
+        //  id this particular source
         const urn = `src:${uuidv4()}`
 
-        //  setup a request to execute the GraphQL Subscription; this
+        //  setup a first request to execute the GraphQL Subscription; this
         //  will return the Mercure URL that we need to subscribe to
         //  in order to receive update events
         //
@@ -138,19 +138,28 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                         //  change the URL Caddy sees to the URL the web app needs
                         const mercure = useMercure(mercureUrl.replace(CADDY_MERCURE_URL, MERCURE_ENTRYPOINT), { withCredentials: false }, {
                             //  reconfigure timeout on error
+                            //
+                            //  Mercure has a config timeout that it uses to close
+                            //  connections; don't know why it does that, and it can
+                            //  be disabled, but just in case we'll automatically
+                            //  try to reconnect
+                            //
                             retry_baseline_fn(n) {
-                                // return '5s'
+                                // return '5s', '1m', ... durations
                                 const steps = ['250ms', '1s', '1s', '1s', '5s']
                                 // const steps = ['250ms']
                                 if (n <= steps.length) { return steps[n - 1] }
+                                //  no more retries
                                 return 'infinity'
                             },
+                            //  baseline + random small variation (ms)
                             retry_rng_span: 500
                         });
 
-                        //  we are interested on these
+                        //  we are interested on these from our actual Mercure Event Source
                         const { lastEventID, eventType, dataFieldsValues, urn, gqlSubscriptionID, status, error, severity } = toRefs(mercure)
 
+                        //  a new event ID
                         watch(lastEventID, () => {
                             //  events of type 'GraphQL Subscription'
                             if (eventType.value === 'gqlsubs') {
@@ -163,7 +172,8 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                                     //  prepare result
                                         result = {
                                             ...result,
-                                            data: { ...result.data, [selectionName]: { ...result.data[selectionName], ...dvalue}},
+                                            data: { ...result.data, [selectionName]: { ...result.data[selectionName], ...dvalue}}, 
+                                            //  include info about the event source state
                                             extensions: {
                                                 [`urn:mercure:${selectionName}`]: {
                                                     status:status.value,
@@ -176,13 +186,13 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                                             // hasNext: true
                                         }
                                         console.log('subs source <<< ', lastEventID.value, ' ', _.truncate(urn.value,{length:24}))
-
+                                        //  pass that to subscriber
                                         next(result)
-                                    //  notify the subscriber that there's another value (?)
                                 }
                             }
                         })
 
+                        //  the event source gives up on retrying after an error
                         watch(error, () => {
                             if (severity.value === 'SEVERE') {
                                 next({
@@ -193,6 +203,7 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
                             }
                         })
                         
+                        //  event source status (open, closed) changes, tell the subscriber
                         watch(status, () => {
                             next({
                                 data: null,
@@ -228,6 +239,8 @@ const createFetchSource = (request: SubscriptionOperation, operation: Operation)
             }
         };
     });
+
+    return results$
 };
 
 const executeFetch = (request: SubscriptionOperation, operation: Operation, opts: RequestInit) => {
