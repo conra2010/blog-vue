@@ -112,11 +112,11 @@ const qInputColor = computed(() => {
 <template>
     <div>
         <!-- <q-input filled v-model="uv" :label="label" @focus="handleFocusGained" dark :label-color="qInputColor"/> -->
-        <q-input :disable="!isOnline" filled v-model="uv" :label="label" @blur="handleFocusLost" @focus="handleFocusGained" dark :label-color="qInputColor"/>
+        <q-input :disable="!isOnline" filled v-model="uv" label-color="white" :label="label" @blur="handleFocusLost" @focus="handleFocusGained" dark :label-color="qInputColor"/>
         <div v-if="conflict">
             Conflict: {{ og }}
-            <q-btn flat secondary label="Cancel" @click="handleCancelEdit" />
-            <q-btn flat accent label="Replace" @click="handleAcceptTruth" />
+            <q-btn flat label="Cancel" @click="handleCancelEdit" />
+            <q-btn flat label="Replace" @click="handleAcceptTruth" />
         </div>
     </div>
     <!-- <q-btn flat color="secondary" label="(sim focus lost)" @click="handleFocusLost" /> -->

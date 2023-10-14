@@ -248,37 +248,37 @@ onDeactivated(() => {
 
 <template>
     <div>
-        <q-card class="my-card q-mb-sm" :style="qcardStyle">
+        <q-card class="bg-grey-9 text-white q-mb-sm" >
             <q-card-section>
                 <div class="text-caption">Vue Component ID
-                    <q-badge :color="isRunning ? 'green' : 'red'">
+                    <q-badge :color="isRunning ? 'positive' : 'negative'">
                         {{ _.truncate(urn, { length: 24 }) }}
                     </q-badge>
                 </div>
                 <div class="text-caption">Resource IRI
-                    <q-badge v-if="isMercureEventSourceOpen" color="blue">
+                    <q-badge v-if="isMercureEventSourceOpen" color="info">
                         {{ iri }}
                     </q-badge>
                 </div>
             </q-card-section>
             <q-card-section v-if="exts !== undefined">
                 <div class="text-caption">Event Source Status
-                    <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
+                    <q-badge :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
                         {{ exts['urn:mercure:updatePostSubscribe'].status }}
                     </q-badge>
                 </div>
                 <div class="text-caption">Source ID
-                    <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
+                    <q-badge :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
                         {{ _.truncate(exts['urn:mercure:updatePostSubscribe'].urn, { length: 24 }) }}
                     </q-badge>
                 </div>
                 <div class="text-caption">GraphQL Subscription ID
-                    <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
+                    <q-badge :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
                         subs:{{ _.truncate(exts['urn:mercure:updatePostSubscribe'].subscription, { length: 24 }) }}
                     </q-badge>
                 </div>
                 <div class="text-caption">Last Event ID
-                    <q-badge :color="isMercureEventSourceOpen ? 'green' : 'red'">
+                    <q-badge :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
                         {{ _.truncate(exts['urn:mercure:updatePostSubscribe'].lastEventID, { length: 24 }) }}
                     </q-badge>
                 </div>
@@ -297,7 +297,7 @@ onDeactivated(() => {
                                 <FieldChangeTracker label="Title" :iri="iri" :og="details.title" :mut="updatePostTitle"/>
                                 <FieldChangeTracker label="Author" :iri="iri" :og="details.author" :mut="updatePostAuthor"/>
                             </div>
-                            <div class="col-auto text-caption q-pt-md row no-wrap items-center">
+                            <div class="col-auto text-white text-caption q-pt-md row no-wrap items-center">
                                 <q-icon name="clock" />{{ details.version }}
                                 <q-icon name="star" />{{ details.stars }}
                             </div>
@@ -317,5 +317,5 @@ onDeactivated(() => {
 </template>
 
 <style>
-q-card { color: hsl(0, 0%, 75%); }
+q-card { color: white; }
 </style>

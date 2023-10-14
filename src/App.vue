@@ -137,11 +137,11 @@ function handleReload() {
   <q-layout view="hHh lpR fFf">
     <q-header elevated class="bg-primary text-white" height-hint="98">
       <q-tabs align="left">
-        <q-route-tab to="/" label="Home" />
-        <q-route-tab to="/about" label="About" />
-        <q-route-tab to="/alt" label="Alt" />
-        <q-route-tab to="/ordered" label="Posts" />
-        <q-route-tab to="/sse" label="SSE" />
+        <q-route-tab no-caps to="/" label="Home" />
+        <q-route-tab no-caps to="/about" label="About" />
+        <q-route-tab no-caps to="/alt" label="Alt" />
+        <q-route-tab no-caps to="/ordered" label="Posts" />
+        <q-route-tab no-caps to="/sse" label="SSE" />
       </q-tabs>
     </q-header>
 

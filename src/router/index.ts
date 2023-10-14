@@ -15,11 +15,6 @@ const router = createRouter({
       component: () => import('../views/OrderedHomeView.vue')
     },
     {
-      path: '/table',
-      name: 'table',
-      component: () => import('../views/TabularHomeView.vue')
-    },
-    {
       path: '/test',
       name: 'test',
       component: () => import('../views/TestParentView.vue')
