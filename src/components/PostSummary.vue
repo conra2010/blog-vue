@@ -5,7 +5,7 @@ import {
     onMounted,
     onBeforeUnmount, onUnmounted } from 'vue';
 import { gql, useMutation, useQuery, useSubscription, type SubscriptionHandler } from '@urql/vue'
-import { useOnline } from '@vueuse/core';
+import { useEventBus, useOnline } from '@vueuse/core';
 import FieldChangeTracker from './FieldChangeTracker.vue';
 import { useQuasar } from 'quasar';
 import { v4 as uuidv4 } from 'uuid'
@@ -303,8 +303,8 @@ onDeactivated(() => {
                             </div>
                         </q-card-section>
                         <q-card-actions>
-                            <q-btn flat :disable="isDeletedResource||(!isOnline)" color="primary" label="Delete" @click="deletePost" />
-                            <q-btn flat :disable="isDeletedResource||(!isOnline)" color="primary" label="Like" @click="pushChanges(details.stars + 1)" />
+                            <q-btn :disable="isDeletedResource||(!isOnline)" color="primary" label="Delete" @click="deletePost" />
+                            <q-btn :disable="isDeletedResource||(!isOnline)" color="primary" label="Like" @click="pushChanges(details.stars + 1)" />
                         </q-card-actions>
                     </div>
                 </transition>

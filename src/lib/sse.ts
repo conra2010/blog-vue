@@ -433,7 +433,7 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
  * @param events
  * @param options
  */
-export function useMercureEventSource(url: string, events: Array<string> = [], options: UseEventSourceOptions = {}) {
+function useMercureEventSource(url: string, events: Array<string> = [], options: UseEventSourceOptions = {}) {
 
   const dataFieldsValues: Ref<any[] | null> = ref(null)
 

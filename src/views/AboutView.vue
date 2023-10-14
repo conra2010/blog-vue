@@ -14,8 +14,9 @@
 //  Vue component that 'manages' a Post resource
 import PostSummary from '@/components/PostSummary.vue';
 import { gql, useQuery } from '@urql/vue';
+import { useEventBus } from '@vueuse/core';
 import { useQuasar } from 'quasar';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 //  to notify errors
 const $q = useQuasar()
 
@@ -47,5 +48,15 @@ const iris = computed(() => {
 const infScrollMark = ref(1)
 
 const infScrollSlice = computed(() => { return iris.value.slice(0, infScrollMark.value) })
+
+const rmbus = useEventBus<string>('rm')
+
+const rmsubs = rmbus.on((event) => {
+  queryIndexPostsResponse.executeQuery({ requestPolicy: 'network-only' })
+})
+
+onUnmounted(() => {
+    //  cleanup ??
+})
 
 </script>

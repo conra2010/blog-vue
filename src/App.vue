@@ -10,12 +10,13 @@ import { Client, mapExchange, provideClient, subscriptionExchange } from '@urql/
 //
 // import { devtoolsExchange } from '@urql/devtools'
 
-import { GRAPHQL_ENTRYPOINT } from '@/config/api';
+import { GRAPHQL_ENTRYPOINT, MERCURE_TOPICS_PREFIX, MERCURE_WELL_KNOWN } from '@/config/api';
 
-import { ref, watch } from 'vue'
+import { ref, toRefs, watch } from 'vue'
 import { useOnline, useEventBus, useTimeout } from '@vueuse/core'
 
 import { useQuasar } from 'quasar'
+import { useMercure } from './lib/sse';
 
 //  check network status
 //  TODO check browser support
@@ -129,6 +130,34 @@ const fsub = fbus.on(flistener)
 function handleReload() {
   location.reload()
 }
+
+const rmbus = useEventBus<string>('rm')
+
+const rmMercureEvents =
+  useMercure(
+    MERCURE_WELL_KNOWN + '?topic=' + MERCURE_TOPICS_PREFIX + '/posts/{id}',
+    { withCredentials: false },
+    { 
+      retry_baseline_fn(n) {
+        const steps = ['250ms', '1s', '1s', '1s', '5s']
+                                // const steps = ['250ms']
+                                if (n <= steps.length) { return steps[n - 1] }
+                                //  no more retries
+                                return 'infinity'
+      },
+      retry_rng_span: 500
+    }
+  );
+
+const { lastEventID: rmEventID, eventType: rmEventType, firstDataField: rmFirstDataField } = toRefs(rmMercureEvents)
+
+watch(rmEventID, () => {
+  if (rmEventType.value === 'delete') {
+    console.log('rm event: ', rmFirstDataField.value)
+
+    rmbus.emit(rmFirstDataField.value['@id'])
+  }
+})
 
 </script>
 
