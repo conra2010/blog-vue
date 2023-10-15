@@ -12,9 +12,12 @@
 
 <script setup lang="ts">
 import PostSummary from '@/components/PostSummary.vue';
+import { MERCURE_TOPICS_PREFIX, MERCURE_WELL_KNOWN } from '@/config/api';
+import { useMercureStore } from '@/stores/mercure';
 import { gql, useQuery } from '@urql/vue';
 import { useQuasar } from 'quasar';
 import { ref, computed, watch } from 'vue';
+import { onPush, pipe, publish } from 'wonka';
 
 const $q = useQuasar()
 
@@ -45,5 +48,32 @@ const iris = computed(() => {
 const infScrollMark = ref(1)
 
 const infScrollSlice = computed(() => { return iris.value.slice(0, infScrollMark.value) })
+
+
+const { source, forTopic } = useMercureStore()
+
+const something = pipe(source,
+  onPush((value) => {
+    if (value.apiEventType === 'create') {
+      //  show the new guy
+      queryIndexPostsResponse.data.value.posts.unshift({ id: value.apiResourceID })
+    }
+    if (value.apiEventType === 'delete' && value.apiResourceID === iris.value[0]) {
+      //  was our guy
+      queryIndexPostsResponse.executeQuery({ requestPolicy: 'network-only' })
+    }
+  }),
+  publish
+  )
+
+
+const subs = forTopic(MERCURE_TOPICS_PREFIX + '/posts/{id}')
+
+const anything = pipe(subs,
+  onPush((value) => {
+    console.log('subs ', value)
+  }),
+  publish
+)
 
 </script>

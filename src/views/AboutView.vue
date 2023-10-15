@@ -13,10 +13,12 @@
 <script setup lang="ts">
 //  Vue component that 'manages' a Post resource
 import PostSummary from '@/components/PostSummary.vue';
+import { useMercureStore } from '@/stores/mercure';
 import { gql, useQuery } from '@urql/vue';
 import { useEventBus } from '@vueuse/core';
 import { useQuasar } from 'quasar';
 import { ref, computed, watch, onUnmounted } from 'vue';
+import { onPush, pipe, publish } from 'wonka';
 //  to notify errors
 const $q = useQuasar()
 
@@ -49,14 +51,30 @@ const infScrollMark = ref(1)
 
 const infScrollSlice = computed(() => { return iris.value.slice(0, infScrollMark.value) })
 
-const rmbus = useEventBus<string>('rm')
+// const rmbus = useEventBus<string>('rm')
 
-const rmsubs = rmbus.on((event) => {
-  queryIndexPostsResponse.executeQuery({ requestPolicy: 'network-only' })
-})
+// const rmsubs = rmbus.on((event) => {
+//   queryIndexPostsResponse.executeQuery({ requestPolicy: 'network-only' })
+// })
 
 onUnmounted(() => {
     //  cleanup ??
 })
+
+const { source } = useMercureStore()
+
+const something = pipe(source,
+  onPush((value) => {
+    if (value.apiEventType === 'create') {
+      //  show the new guy
+      queryIndexPostsResponse.data.value.posts.unshift({ id: value.apiResourceID })
+    }
+    if (value.apiEventType === 'delete' && value.apiResourceID === iris.value[0]) {
+      //  was our guy
+      queryIndexPostsResponse.executeQuery({ requestPolicy: 'network-only' })
+    }
+  }),
+  publish
+  )
 
 </script>

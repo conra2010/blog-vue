@@ -9,7 +9,7 @@
       v-slot="{ item, index }">
       <q-item :key="index">
 
-          <PostSummaryItem :iri="item" :rmref="delta.deleted" :insref="delta.inserted"/>
+          <PostSummaryItem :iri="item" />
 
       </q-item>
     </q-virtual-scroll>
@@ -26,6 +26,8 @@ import { MERCURE_WELL_KNOWN, MERCURE_TOPICS_PREFIX } from '@/config/api';
 
 import { useOnline } from '@vueuse/core';
 import { useQuasar } from 'quasar';
+import { useMercureStore } from '@/stores/mercure';
+import { onPush, pipe, publish } from 'wonka';
 
 const $q = useQuasar()
 
@@ -82,22 +84,39 @@ const refetchQueryNetworkOnly = () => {
 
 //  testing this to keep track of inserted/removed resource IRIs from server events
 //
-const delta = useMercureDelta(MERCURE_WELL_KNOWN + '?topic=' + MERCURE_TOPICS_PREFIX + '/posts/{id}')
+// const delta = useMercureDelta(MERCURE_WELL_KNOWN + '?topic=' + MERCURE_TOPICS_PREFIX + '/posts/{id}')
 
-watch(delta.lastEventID, () => {
-  if (delta.eventType.value == 'create') {
-    const dtaval = delta.firstDataField.value
-    if (dtaval && dtaval['@id']) {
-      queryIndexPostsResponse.data.value.posts.unshift({ id: dtaval['@id'] })
+// watch(delta.lastEventID, () => {
+//   if (delta.eventType.value == 'create') {
+//     const dtaval = delta.firstDataField.value
+//     if (dtaval && dtaval['@id']) {
+//       queryIndexPostsResponse.data.value.posts.unshift({ id: dtaval['@id'] })
+//     }
+//   }
+//   if (delta.eventType.value == 'delete') {
+//     refetchQueryNetworkOnly()
+//   }
+// })
+
+// watch(delta.error, () => {
+//   console.log(`Mercure Delta IRIs error: `, delta.error.value)
+// })
+
+
+const { source } = useMercureStore()
+
+const something = pipe(source,
+  onPush((value) => {
+    if (value.apiEventType === 'create') {
+      queryIndexPostsResponse.data.value.posts.unshift({ id: value.apiResourceID })
     }
-  }
-  if (delta.eventType.value == 'delete') {
-    refetchQueryNetworkOnly()
-  }
-})
+    if (value.apiEventType === 'delete') {
+      //  was our guy
+      queryIndexPostsResponse.executeQuery({ requestPolicy: 'network-only' })
+    }
+  }),
+  publish
+  )
 
-watch(delta.error, () => {
-  console.log(`Mercure Delta IRIs error: `, delta.error.value)
-})
 
 </script>
