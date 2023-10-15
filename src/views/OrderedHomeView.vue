@@ -58,7 +58,7 @@ const iris = computed(() => {
 })
 
 //  currently shown IRIs up to this array index
-const infScrollMark = ref(25)
+const infScrollMark = ref(8)
 
 const infScrollSlice = computed(() => { return iris.value.slice(0, infScrollMark.value) })
 
