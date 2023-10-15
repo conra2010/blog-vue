@@ -28,6 +28,7 @@ watch(og, () => {
     } else {
         //  if values are different, there's a conflict
         if (uv.value !== og.value) {
+            hintOnConflict.value = 'Another user just changed this field to ' + og.value
             conflict.value = true
         }
     }
@@ -107,19 +108,38 @@ const qInputColor = computed(() => {
     return "teal"
 })
 
+const hintOnConflict = ref('')
+
 </script>
 
 <template>
     <div>
-        <!-- <q-input filled v-model="uv" :label="label" @focus="handleFocusGained" dark :label-color="qInputColor"/> -->
-        <q-input :disable="!isOnline" filled v-model="uv" label-color="white" :label="label" @blur="handleFocusLost" @focus="handleFocusGained" dark :label-color="qInputColor"/>
-        <div v-if="conflict">
+        <q-input v-if="!conflict"
+            filled v-model="uv" @blur="handleFocusLost" 
+            :label="label" @focus="handleFocusGained" dark :label-color="qInputColor"
+            />
+        <q-input v-else
+            filled bottom-slots v-model="uv" @blur="handleFocusLost" 
+            :label="label" @focus="handleFocusGained" dark :label-color="qInputColor"
+            >
+            <template v-slot:prepend>
+                <q-icon name="warning" />
+            </template>
+            <template v-slot:append>
+                <q-icon name="close" @click="handleCancelEdit" class="cursor-pointer" />
+            </template>
+
+            <template v-slot:hint>{{ hintOnConflict }}</template>
+        </q-input>
+
+        <!-- <q-input :disable="!isOnline" filled v-model="uv" label-color="white" :label="label" @blur="handleFocusLost" @focus="handleFocusGained" dark :label-color="qInputColor"/> -->
+        <!-- <div v-if="conflict">
             Conflict: {{ og }}
             <q-btn flat label="Cancel" @click="handleCancelEdit" />
             <q-btn flat label="Replace" @click="handleAcceptTruth" />
-        </div>
+        </div> -->
     </div>
-    <!-- <q-btn flat color="secondary" label="(sim focus lost)" @click="handleFocusLost" /> -->
+    <!-- <q-btn label-color="white" label="(sim focus lost)" @click="handleFocusLost" /> -->
 </template>
 
 <style>
