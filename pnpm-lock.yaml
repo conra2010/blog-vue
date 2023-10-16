@@ -35,6 +35,9 @@ dependencies:
   '@vueuse/shared':
     specifier: ^10.5.0
     version: 10.5.0(vue@3.3.4)
+  animejs:
+    specifier: ^3.2.1
+    version: 3.2.1
   dotenv-flow:
     specifier: ^4.0.0
     version: 4.0.0
@@ -73,6 +76,9 @@ devDependencies:
   '@tsconfig/node18':
     specifier: ^18.2.2
     version: 18.2.2
+  '@types/animejs':
+    specifier: ^3.1.8
+    version: 3.1.8
   '@types/node':
     specifier: ^18.17.17
     version: 18.17.19
@@ -381,6 +387,10 @@ packages:
     resolution: {integrity: sha512-d6McJeGsuoRlwWZmVIeE8CUA27lu6jLjvv1JzqmpsytOYYbVi1tHZEnwCNVOXnj4pyLvneZlFlpXUK+X9wBWyw==}
     dev: true
 
+  /@types/animejs@3.1.8:
+    resolution: {integrity: sha512-jBMAq/l14WKPrKGoSbeVBqT94BOwikQ6V3F63K/rduUE/HE/zQ6qFEhUoISyUm+Yg7qdRYbrToJ04mKHRtybtw==}
+    dev: true
+
   /@types/lodash@4.14.199:
     resolution: {integrity: sha512-Vrjz5N5Ia4SEzWWgIVwnHNEnb1UE1XMkvY5DGXrAeOGE9imk0hgTHh5GyDjLDJi9OTCn9oo9dXH1uToK1VRfrg==}
     dev: false
@@ -617,6 +627,10 @@ packages:
     transitivePeerDependencies:
       - '@vue/composition-api'
       - vue
+    dev: false
+
+  /animejs@3.2.1:
+    resolution: {integrity: sha512-sWno3ugFryK5nhiDm/2BKeFCpZv7vzerWUcUPyAZLDhMek3+S/p418ldZJbJXo5ZUOpfm2kP2XRO4NJcULMy9A==}
     dev: false
 
   /ansi-styles@3.2.1:
