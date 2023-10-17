@@ -9,7 +9,7 @@ import { useMercureEventSource, useMercure } from '@/lib/sse'
 import MercureEventSourceDebug from '@/components/MercureEventSourceDebug.vue';
 import { useCounterStore } from '@/stores/counter';
 
-const es = useMercure(MERCURE_WELL_KNOWN + '?topic=http://ap.lab.ux/posts/{id}', {}, {retry_baseline: 10000, retry_rng_span: 2000 })
+const es = useMercure(MERCURE_WELL_KNOWN + '?topic=http://ap.lab.ux/posts/{id}', {}, {})
 
 const knownEventIDs: Ref<string[]> = ref([])
 

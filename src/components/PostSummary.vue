@@ -248,43 +248,43 @@ onDeactivated(() => {
 
 <template>
     <div>
-        <q-card class="bg-grey-9 text-white q-mb-sm" >
+        <q-card class="bg-grey-8 text-white q-mb-sm" >
             <q-card-section>
                 <div class="text-caption">Vue Component ID
-                    <q-badge :color="isRunning ? 'positive' : 'negative'">
+                    <q-badge text-color="black" :color="isRunning ? 'positive' : 'negative'">
                         {{ _.truncate(urn, { length: 24 }) }}
                     </q-badge>
                 </div>
                 <div class="text-caption">Resource IRI
-                    <q-badge v-if="isMercureEventSourceOpen" color="info">
+                    <q-badge text-color="black" :color="isMercureEventSourceOpen ? 'positive' : 'negateve'">
                         {{ iri }}
                     </q-badge>
                 </div>
             </q-card-section>
             <q-card-section v-if="exts !== undefined">
                 <div class="text-caption">Event Source Status
-                    <q-badge :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
+                    <q-badge text-color="black" :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
                         {{ exts['urn:mercure:updatePostSubscribe'].status }}
                     </q-badge>
                 </div>
                 <div class="text-caption">Source ID
-                    <q-badge :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
+                    <q-badge text-color="black" :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
                         {{ _.truncate(exts['urn:mercure:updatePostSubscribe'].urn, { length: 24 }) }}
                     </q-badge>
                 </div>
                 <div class="text-caption">GraphQL Subscription ID
-                    <q-badge :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
+                    <q-badge text-color="black" :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
                         subs:{{ _.truncate(exts['urn:mercure:updatePostSubscribe'].subscription, { length: 24 }) }}
                     </q-badge>
                 </div>
                 <div class="text-caption">Last Event ID
-                    <q-badge :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
+                    <q-badge text-color="black" :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
                         {{ _.truncate(exts['urn:mercure:updatePostSubscribe'].lastEventID, { length: 24 }) }}
                     </q-badge>
                 </div>
             </q-card-section>
         </q-card>
-        <q-card class="my-card q-mb-sm" :style="qcardStyle">
+        <q-card class="bg-grey-8 my-card q-mb-sm" :style="qcardStyle">
             <q-card-section>
                 <transition
                     appear
@@ -292,7 +292,7 @@ onDeactivated(() => {
                     leave-active-class="animated fadeOut"
                     >
                     <div v-if="details">
-                        <q-card-section>
+                        <q-card-section class="bg-grey-7">
                             <div class="text-h5 q-mt-sm q-mb-xs">
                                 <FieldChangeTracker label="Title" :iri="iri" :og="details.title" :mut="updatePostTitle"/>
                                 <FieldChangeTracker label="Author" :iri="iri" :og="details.author" :mut="updatePostAuthor"/>
@@ -303,8 +303,8 @@ onDeactivated(() => {
                             </div>
                         </q-card-section>
                         <q-card-actions>
-                            <q-btn :disable="isDeletedResource||(!isOnline)" color="primary" label="Delete" @click="deletePost" />
-                            <q-btn :disable="isDeletedResource||(!isOnline)" color="primary" label="Like" @click="pushChanges(details.stars + 1)" />
+                            <q-btn :disable="isDeletedResource||(!isOnline)" color="positive" label-color="info" label="Delete" @click="deletePost" />
+                            <q-btn :disable="isDeletedResource||(!isOnline)" color="positive" label="Like" @click="pushChanges(details.stars + 1)" />
                         </q-card-actions>
                     </div>
                 </transition>
@@ -315,7 +315,3 @@ onDeactivated(() => {
         </q-card>
     </div>
 </template>
-
-<style>
-q-card { color: white; }
-</style>

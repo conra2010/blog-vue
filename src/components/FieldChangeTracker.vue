@@ -103,9 +103,9 @@ const qInputColor = computed(() => {
         if (conflict.value) {
             return "accent"
         }
-        return "primary"
+        return "white"
     }
-    return "teal"
+    return "lightgray"
 })
 
 const hintOnConflict = ref('')
@@ -143,6 +143,10 @@ const hintOnConflict = ref('')
 </template>
 
 <style>
+input {
+    font-size: max(1em, 16px);
+}
+
 .content { color: hsl(0, 0%, 75%); }
 
 .conflict { color: hsl(32, 51%, 51%); }
