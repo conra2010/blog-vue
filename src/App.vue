@@ -165,7 +165,7 @@ watch(rmEventID, () => {
   <!-- top layout -->
   <q-layout view="hHh lpR fFf">
     <q-header elevated class="bg-primary text-white" height-hint="98">
-      <q-tabs align="left">
+      <q-tabs indicator-color="positive" align="left">
         <q-route-tab no-caps to="/" label="Home" />
         <q-route-tab no-caps to="/about" label="About" />
         <q-route-tab no-caps to="/alt" label="Alt" />

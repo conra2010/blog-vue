@@ -9,26 +9,24 @@ cp .env .env.local
 cat .env.local
 ```
 Compile and Hot-Reload for Development:
-```sh
+```shell
 pnpm dev --host
 ```
-Open a browser and point it to the app (replace the hostname/port here):
+Open browsers and point them to the app (replace the hostname/port here):
 ```shell
-open http://shodan.local:5173/
+cat ~/bin/chrome
+#!/usr/bin/env bash
+#
+
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome $@
 ```
-With the development tools check the network tab; there should be several _graphql_ and  _mercure?topic=..._ requests.
-Each Vue component that's responsible for a "Post" resource subscribes to changes in several fields (author, title, etc.); if this is using a modified API Platform, the topics shown in the requests should be different for each Vue component.
-# POSTS
-## OrderedHomeView
-The component uses a GraphQL query to retrieve IDs of all the posts (pagination is disabled in the API Platform). A Vue _computed_ reference _iris_ will always have the array of IDs, even if we refetch the query.
-The _template_ renders a Quasar virtual scroll, using a component _PostSummaryItem_ when it needs to show a Post. This template will react to changes in the array of IDs, and tries to do so efficiently.
-With _useMercureDelta_ we have updated sets of "inserted IDs" and "deleted IDs". In the example, the component will refetch the IDs on deletion (updates the view too)  and push IDs on the top of the data on insertion (not sure about this one).
-## PostSummaryItem
-Doesn't do a lot. Some component lifecycle logging. Receives as props the ID of the Post and the sets of inserted and deleted IDs. Wanted to implement a delete by swiping here (iOS style).
-## PostSummary
-Receives the ID of a Post, and uses GraphQL to query some details, subscribe to changes on some fields, and mutations to change "Author", "Title", "Stars", and delete the resource.
-The _template_ renders details and some buttons to test the GraphQL mutations. It uses a component _FieldChangeTracker_ that implements a more complex edition logic for fields "Author" and "Title".
-### Subscription
+A pair of instances to see the interactions:
+```shell
+chrome --user-data-dir=/tmp/alpha --no-first-run http://shodan.local:5173 &
+chrome --user-data-dir=/tmp/beta --no-first-run http://shodan.local:5173 &
+```
+
+With the development tools check the network tab; on the pages that show resources there should be several _graphql_ and  _mercure?topic=..._ requests.
 
 # SSE
 A debug component to show events coming in from Mercure, listens to the topic about Posts, any ID:
@@ -36,7 +34,7 @@ A debug component to show events coming in from Mercure, listens to the topic ab
 http://{$SERVER_NAME}/posts/{id}
 ```
 ## Events
-To receive some events, use the GraphQL Playground to execute operations; notice the event type is included in the message, if the modified API Platform is used.
+To receive some events, use the GraphQL Playground to execute operations; notice the event type is included in the message if the modified API Platform is used. Google Chrome dev tools show the event stream.
 
 Create a new resource:
 ```graphql
@@ -88,7 +86,7 @@ seq 1000 | while read line; \
     # data to send to Mercure
     set DTA '{"SEQ":"'$line'","ts":"'$TS'"}'; \
     # POST it to the topic
-    set RESPONSE (http -b --ignore-stdin -f POST \
+    set RESPONSE (httpx -b --ignore-stdin -f POST \
 	    {$MERCURE_ENTRYPOINT}/.well-known/mercure \
 	    topic={$MERCURE_TOPICS_PREFIX}'/posts/1' \
 	    data=$DTA \
@@ -101,4 +99,4 @@ seq 1000 | while read line; \
 end
 ```
 
-After some events are received, we go offline by changing "No throttling" to "Offline". The event source should detect that and close the connection; go back to "No throttling" and after a few seconds the event source should try to reconnect and tell Mercure the ID of the last event received.
+After some events are received, go offline by changing "No throttling" to "Offline". The event source should detect that and close the connection; go back to "No throttling" and after a few seconds the event source should try to reconnect and tell Mercure the ID of the last event received.
