@@ -1,5 +1,5 @@
 import { ref, computed, watch, shallowRef, type Ref, reactive, inject } from 'vue'
-import { refDebounced, tryOnScopeDispose, useRefHistory, watchDebounced } from '@vueuse/core'
+import { refDebounced, tryOnScopeDispose, useEventBus, useRefHistory, watchDebounced } from '@vueuse/core'
 import { useEventListener, useWebWorkerFn } from '@vueuse/core'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -86,6 +86,8 @@ export interface UseMercureConfiguration {
 }
 
 export function useMercure(url: string, options: UseEventSourceOptions = {}, configuration?: UseMercureConfiguration): MercureSource {
+  
+  const ebus = useEventBus<boolean>('mercure')
   
   //  data about the event received
   const lastEventID: Ref<string> = ref('')
@@ -331,6 +333,8 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
         pre(e)
         //
         dataFieldsValues.value = datavals(e)
+        // 
+        ebus.emit(true)
       }
       //  API Platform 'create', 'update' and 'delete' messages
       eventSource.value.addEventListener('create', (e) => {
@@ -338,25 +342,33 @@ export function useMercure(url: string, options: UseEventSourceOptions = {}, con
         pre(e)
         //
         dataFieldsValues.value = jslift(datavals(e))
+        // 
+        ebus.emit(true)
       })
       eventSource.value.addEventListener('update', (e) => {
         //console.log('update: ', e.data)
         pre(e)
         //
         dataFieldsValues.value = jslift(datavals(e))
+        // 
+        ebus.emit(true)
       })
       eventSource.value.addEventListener('delete', (e) => {
         //console.log('delete: ', e.data)
         pre(e)
         //
         dataFieldsValues.value = jslift(datavals(e))
+        // 
+        ebus.emit(true)
       })
       eventSource.value.addEventListener('gqlsubs', (e) => {
         //
         pre(e)
         //
         dataFieldsValues.value = jslift(datavals(e))
-
+        // 
+        ebus.emit(true)
+        
         console.log(logid.value, ' <<< Mercure <<< ', s24(urn), ' ', lastEventID.value)
       })
     }

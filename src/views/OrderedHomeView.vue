@@ -1,5 +1,5 @@
 <template>
-  <div v-if="iris">
+  <div class="bg-gray-7" v-if="iris">
     <q-virtual-scroll
       virtualScrollSliceSize="8"
       virtualScrollItemSize="256"

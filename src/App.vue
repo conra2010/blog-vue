@@ -94,6 +94,7 @@ watch(isOnline, () => {
 //  the urql exchanges above will notify into these some events
 const hbus = useEventBus<boolean>('head')
 const fbus = useEventBus<boolean>('fetch')
+const ebus = useEventBus<boolean>('mercure')
 
 //  use them to animate some UI indication of GraphQL activity
 const tick: number = 250
@@ -103,6 +104,8 @@ const { ready: op, start: oprx } = useTimeout(tick, { controls: true })
 const { ready: rx, start: rxrx } = useTimeout(tick, { controls: true })
 //  a operation for a GraphQL Query (not a mutation, nor subscription) missed the urql cache
 const { ready: fx, start: fxrx } = useTimeout(tick, { controls: true })
+//  a mercure event
+const { ready: mx, start: mxrx } = useTimeout(tick, { controls: true })
 
 //  events start timeouts for the UI animations
 function hlistener(event: boolean) {
@@ -122,9 +125,18 @@ function flistener(event: boolean) {
   }
 }
 
+function mlistener(event: boolean) {
+  if (event) {
+    // console.log('[[ FX ]]')
+    mxrx()
+  }
+}
+
+
 //  subscribe to events
 const hsub = hbus.on(hlistener)
 const fsub = fbus.on(flistener)
+const msub = ebus.on(mlistener)
 
 //  provide a 'refresh' UI button
 function handleReload() {
@@ -194,6 +206,7 @@ watch(rmEventID, () => {
           <q-badge :color="!op ? 'orange' : 'gray'">OP</q-badge>
           <q-badge :color="!rx ? 'orange' : 'gray'">RX</q-badge>
           <q-badge :color="!fx ? 'orange' : 'gray'">FX</q-badge>
+          <q-badge :color="!mx ? 'green' : 'gray'">Hg</q-badge>
           <q-btn flat round icon="refresh" color="secondary" @click="handleReload"/>
       </q-toolbar>
     </q-footer>

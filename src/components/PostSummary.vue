@@ -5,12 +5,13 @@ import {
     onMounted,
     onBeforeUnmount, onUnmounted } from 'vue';
 import { gql, useMutation, useQuery, useSubscription, type SubscriptionHandler } from '@urql/vue'
-import { useEventBus, useOnline } from '@vueuse/core';
+import { useEventBus, useMutationObserver, useOnline } from '@vueuse/core';
 import FieldChangeTracker from './FieldChangeTracker.vue';
 import { useQuasar } from 'quasar';
 import { v4 as uuidv4 } from 'uuid'
 
 import * as _ from 'lodash'
+import anime from 'animejs';
 
 //  component receives the Post IRI as prop
 const props = defineProps<{
@@ -216,12 +217,22 @@ const deletePostResult = useMutation(gql`
     }
 `)
 
+
+const el = ref()
+
+const al = ref()
+
+
 onBeforeMount(() => {
     console.log(urn, ' on before mount')
 })
 
 onMounted(() => {
     console.log(urn, ' on mounted')
+
+    // const mut = useMutationObserver(el, (mutations) => {
+    //     console.log(mutations[0].type)
+    // }, { subtree: true, childList: true, characterData: true, attributes: true })
 })
 
 onBeforeUpdate(() => {
@@ -248,41 +259,69 @@ onDeactivated(() => {
 
 <template>
     <div>
-        <q-card class="bg-grey-8 text-white q-mb-sm" >
-            <q-card-section>
-                <div class="text-caption">Vue Component ID
-                    <q-badge text-color="black" :color="isRunning ? 'positive' : 'negative'">
-                        {{ _.truncate(urn, { length: 24 }) }}
-                    </q-badge>
-                </div>
-                <div class="text-caption">Resource IRI
-                    <q-badge text-color="black" :color="isMercureEventSourceOpen ? 'positive' : 'negateve'">
-                        {{ iri }}
-                    </q-badge>
-                </div>
-            </q-card-section>
-            <q-card-section v-if="exts !== undefined">
-                <div class="text-caption">Event Source Status
-                    <q-badge text-color="black" :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
-                        {{ exts['urn:mercure:updatePostSubscribe'].status }}
-                    </q-badge>
-                </div>
-                <div class="text-caption">Source ID
-                    <q-badge text-color="black" :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
-                        {{ _.truncate(exts['urn:mercure:updatePostSubscribe'].urn, { length: 24 }) }}
-                    </q-badge>
-                </div>
-                <div class="text-caption">GraphQL Subscription ID
-                    <q-badge text-color="black" :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
-                        subs:{{ _.truncate(exts['urn:mercure:updatePostSubscribe'].subscription, { length: 24 }) }}
-                    </q-badge>
-                </div>
-                <div class="text-caption">Last Event ID
-                    <q-badge text-color="black" :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
-                        {{ _.truncate(exts['urn:mercure:updatePostSubscribe'].lastEventID, { length: 24 }) }}
-                    </q-badge>
-                </div>
-            </q-card-section>
+        <q-card class="q-pa-none bg-grey-8 text-white ">
+            <q-list dense>
+                <q-item>
+                    <q-item-section>
+                        <q-item-label>Vue Component ID:</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                        <q-badge text-color="black" :color="isRunning ? 'positive' : 'negative'">
+                            {{ _.truncate(urn, { length: 24 }) }}
+                        </q-badge>
+                    </q-item-section>
+                </q-item>
+                <q-item>
+                    <q-item-section>
+                        <q-item-label>Resource ID:</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                        <q-badge text-color="black" :color="isMercureEventSourceOpen ? 'positive' : 'negateve'">
+                            {{ iri }}
+                        </q-badge>
+                    </q-item-section>
+                </q-item>
+                <q-item v-if="exts !== undefined">
+                    <q-item-section>
+                        <q-item-label>Event Source Status:</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                        <q-badge text-color="black" :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
+                            {{ exts['urn:mercure:updatePostSubscribe'].status }}
+                        </q-badge>
+                    </q-item-section>
+                </q-item>
+                <q-item v-if="exts !== undefined">
+                    <q-item-section>
+                        <q-item-label>Source ID:</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                        <q-badge text-color="black" :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
+                            {{ _.truncate(exts['urn:mercure:updatePostSubscribe'].urn, { length: 24 }) }}
+                        </q-badge>
+                    </q-item-section>
+                </q-item>
+                <q-item v-if="exts !== undefined">
+                    <q-item-section>
+                        <q-item-label>Subscription ID:</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                        <q-badge text-color="black" :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
+                            subs:{{ _.truncate(exts['urn:mercure:updatePostSubscribe'].subscription, { length: 24 }) }}
+                        </q-badge>
+                    </q-item-section>
+                </q-item>
+                <q-item v-if="exts !== undefined">
+                    <q-item-section>
+                        <q-item-label>Last Event ID:</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                        <q-badge ref="el" text-color="black" :color="isMercureEventSourceOpen ? 'positive' : 'negative'">
+                            {{ _.truncate(exts['urn:mercure:updatePostSubscribe'].lastEventID, { length: 24 }) }}
+                        </q-badge>
+                    </q-item-section>
+                </q-item>
+            </q-list>
         </q-card>
         <q-card class="bg-grey-8 my-card q-mb-sm" :style="qcardStyle">
             <q-card-section>
